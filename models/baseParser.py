@@ -29,7 +29,7 @@ class BaseParser(object):
 		f = orthonormal_VanillaLSTMBuilder(1, word_dims+tag_dims, lstm_hiddens, pc)
 		b = orthonormal_VanillaLSTMBuilder(1, word_dims+tag_dims, lstm_hiddens, pc)
 		self.LSTM_builders.append((f,b))
-		for i in xrange(lstm_layers):
+		for i in xrange(lstm_layers-1):
 			f = orthonormal_VanillaLSTMBuilder(1, 2*lstm_hiddens, lstm_hiddens, pc)
 			b = orthonormal_VanillaLSTMBuilder(1, 2*lstm_hiddens, lstm_hiddens, pc)
 			self.LSTM_builders.append((f,b))
@@ -93,7 +93,7 @@ class BaseParser(object):
 		else:
 			emb_inputs = [ dy.concatenate([w, pos]) for w, pos in zip(word_embs,tag_embs)]
 
-		top_recur = dy.concatenate_cols(biLSTM(self.LSTM_builders, emb_inputs, batch_size, self.dropout_lstm_input, self.dropout_lstm_hidden))
+		top_recur = dy.concatenate_cols(biLSTM(self.LSTM_builders, emb_inputs, batch_size, self.dropout_lstm_input if isTrain else 0., self.dropout_lstm_hidden if isTrain else 0.))
 		if isTrain:
 			top_recur = dy.dropout_dim(top_recur, 1, self.dropout_mlp)
 
