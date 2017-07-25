@@ -5,7 +5,7 @@ import numpy as np
 
 from lib import biLSTM, leaky_relu, bilinear, orthonormal_initializer, arc_argmax, rel_argmax, orthonormal_VanillaLSTMBuilder
 
-class NotagParser(object):
+class SentParser(object):
 	def __init__(self, vocab,
 					   word_dims,
 					   tag_dims,
@@ -23,6 +23,7 @@ class NotagParser(object):
 		self._vocab = vocab
 		self.word_embs = pc.lookup_parameters_from_numpy(vocab.get_word_embs(word_dims))
 		self.pret_word_embs = pc.lookup_parameters_from_numpy(vocab.get_pret_embs())
+		self.tag_embs = pc.lookup_parameters_from_numpy(vocab.get_tag_embs(tag_dims))
 		
 		self.LSTM_builders = []
 		f = orthonormal_VanillaLSTMBuilder(1, word_dims+tag_dims, lstm_hiddens, pc)
@@ -49,13 +50,27 @@ class NotagParser(object):
 		self.rel_W = pc.add_parameters((vocab.rel_size*(mlp_rel_size +1) , mlp_rel_size + 1), init = dy.ConstInitializer(0.))
 
 		self._pc = pc
-		self.dropout_dim = dropout_dim
+
+		def _emb_mask_generator(seq_len, batch_size):
+			ret = []
+			for i in xrange(seq_len):
+				word_mask = np.random.binomial(1, 1. - dropout_dim, batch_size).astype(np.float32)
+				tag_mask = np.random.binomial(1, 1. - dropout_dim, batch_size).astype(np.float32)
+				scale = 3. / (2.*word_mask + tag_mask + 1e-12)
+				word_mask *= scale
+				tag_mask *= scale
+				word_mask = dy.inputTensor(word_mask, batched = True)
+				tag_mask = dy.inputTensor(tag_mask, batched = True)
+				ret.append((word_mask, tag_mask))
+			return ret
+		self.generate_emb_mask = _emb_mask_generator
+
 
 	@property 
 	def parameter_collection(self):
 		return self._pc
 
-	def run(self, word_inputs, tag_inputs = None, arc_targets = None, rel_targets = None, isTrain = True):
+	def run(self, word_inputs, tag_inputs, arc_targets = None, rel_targets = None, isTrain = True):
 		# inputs, targets: seq_len x batch_size
 		def dynet_flatten_numpy(ndarray):
 			return np.reshape(ndarray, (-1,), 'F')
@@ -70,9 +85,13 @@ class NotagParser(object):
 			mask_1D_tensor = dy.inputTensor(mask_1D, batched = True)
 		
 		word_embs = [dy.lookup_batch(self.word_embs, np.where( w<self._vocab.words_in_train, w, self._vocab.UNK)) + dy.lookup_batch(self.pret_word_embs, w, update = False) for w in word_inputs]
+		tag_embs = [dy.lookup_batch(self.tag_embs, pos) for pos in tag_inputs]
 		
 		if isTrain:
-			word_embs= [ dy.dropout_dim(w, 0, self.dropout_dim) for w in word_embs]
+			emb_masks = self.generate_emb_mask(seq_len, batch_size)
+			emb_inputs = [ dy.concatenate([dy.cmult(w, wm), dy.cmult(pos,posm)]) for w, pos, (wm, posm) in zip(word_embs,tag_embs,emb_masks)]
+		else:
+			emb_inputs = [ dy.concatenate([w, pos]) for w, pos in zip(word_embs,tag_embs)]
 
 		top_recur = dy.concatenate_cols(biLSTM(self.LSTM_builders, emb_inputs, batch_size, self.dropout_lstm_input if isTrain else 0., self.dropout_lstm_hidden if isTrain else 0.))
 		if isTrain:
