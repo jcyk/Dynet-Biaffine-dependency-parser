@@ -136,8 +136,8 @@ class Configurable(object):
 	def validate_every(self):
 		return self._config.getint('Run','validate_every')
 	@property
-	def save_every(self):
-		return self._config.getint('Run','save_every')
+	def save_after(self):
+		return self._config.getint('Run','save_after')
 import argparse
 if __name__ == "__main__":
 	argparser = argparse.ArgumentParser()
