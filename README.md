@@ -5,7 +5,7 @@ I tried my best to **exactly copy every detail** in the [tensorflow code](https:
 
 *For one who is interested, please tell me if you can find a difference.*
 
-However, on some version of WSJ data. This code only acheived UAS 94.76%, though the original code acheived UAS 95.50%. This performance difference may come from the difference between Dynet and Tensorflow (we should fune-tune the hyperparameters again if we move to another toolkit?) or the hidden implementation “error”.
+However, on some version of WSJ data. This code only acheived UAS 95.40%, though the original code acheived UAS 95.59%. This performance difference may come from the difference between Dynet and Tensorflow (we should fune-tune the hyperparameters again if we move to another toolkit?) or the hidden implementation “error”.
 
 ## Usage (by examples)
 
