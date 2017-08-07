@@ -29,7 +29,7 @@ class Vocab(object):
 		for word, count in word_counter.most_common():
 			if count > min_occur_count:
 				self._id2word.append(word)
-		
+		self._words_in_train_data = len(self._id2word)
 		self._pret_file = pret_file
 		if pret_file:
 			self._add_pret_words(pret_file)
@@ -41,9 +41,23 @@ class Vocab(object):
 		self._tag2id = reverse(self._id2tag)
 		self._rel2id = reverse(self._id2rel)
 		print "Vocab info: #words %d, #tags %d #rels %d"%(self.vocab_size,self.tag_size, self.rel_size)
-		
-	def _add_pret_words(self, pret_file):
+	
+	def merge_with(self, o):
+		self._id2word = ['<pad>', '<root>', '<unk>'] + list(set(self._id2word[3:self.words_in_train]) + set(o._id2word[3:o.words_in_train]))
+		self._id2tag = ['<pad>', '<root>', '<unk>'] + list(set(self._id2tag[3:]) + set(self._id2tag[3:]))
+		self._id2rel = ['<pad>', 'root'] + list(set(self._id2rel[2:]) + set(self._id2rel[2:]))
 		self._words_in_train_data = len(self._id2word)
+		self._pret_file = pret_file
+		if self._pret_file:
+			self._add_pret_words(self._pret_file)
+			
+		reverse = lambda x : dict(zip(x, range(len(x))))
+		self._word2id = reverse(self._id2word)
+		self._tag2id = reverse(self._id2tag)
+		self._rel2id = reverse(self._id2rel)	
+
+
+	def _add_pret_words(self, pret_file):
 		print '#words in training set:', self._words_in_train_data
 		words_in_train_data = set(self._id2word)
 		with open(pret_file) as f:

@@ -17,8 +17,12 @@ class SentParser(object):
 					   mlp_arc_size,
 					   mlp_rel_size,
 					   dropout_mlp,
+					   choice_size
 					   ):
-		pc = dy.ParameterCollection()
+
+		all_params = dy.ParameterCollection()
+		self._all_params = all_params
+		pc = all_params.add_subcollection()
 
 		self._vocab = vocab
 		self.word_embs = pc.lookup_parameters_from_numpy(vocab.get_word_embs(word_dims))
@@ -65,12 +69,32 @@ class SentParser(object):
 			return ret
 		self.generate_emb_mask = _emb_mask_generator
 
+		trainable_params = all_params.add_subcollection()
+		self.in_LSTM_builders = []
+		f = orthonormal_VanillaLSTMBuilder(1, word_dims+tag_dims, lstm_hiddens, trainable_params)
+		b = orthonormal_VanillaLSTMBuilder(1, word_dims+tag_dims, lstm_hiddens, trainable_params)
+		self.in_LSTM_builders.append((f,b))
+		for i in xrange(lstm_layers-1):
+			f = orthonormal_VanillaLSTMBuilder(1, 2*lstm_hiddens, lstm_hiddens, trainable_params)
+			b = orthonormal_VanillaLSTMBuilder(1, 2*lstm_hiddens, lstm_hiddens, trainable_params)
+			self.in_LSTM_builders.append((f,b)
+
+		self.choice_W = trainable_params.add_parameters((choice_size, 2*lstm_hiddens), init = dy.ConstInitializer(0.))
+		self.choice_b = trainable_params.add_parameters((choice_size,), init = dy.ConstInitializer(0.))
+		self.judge_W = trainable_params.add_parameters((1, choice_size), init = dy.ConstInitializer(0.))
+		self.judge_b = trainable_params.add_parameters((1,), init = dy.ConstInitializer(0.))
+		self._trainable_params = trainable_params
+		self._all_params = all_params
+
+	@property
+	def all_paramter_collection(self):
+		self._all_params
 
 	@property 
-	def parameter_collection(self):
-		return self._pc
+	def trainable_parameter_collection(self):
+		return self._trainable_params
 
-	def run(self, word_inputs, tag_inputs, arc_targets = None, rel_targets = None, isTrain = True):
+	def run(self, word_inputs, tag_inputs, arc_targets = None, rel_targets = None, in_domains = None, isTrain = True, domain_loss_scale =0.):
 		# inputs, targets: seq_len x batch_size
 		def dynet_flatten_numpy(ndarray):
 			return np.reshape(ndarray, (-1,), 'F')
@@ -93,9 +117,19 @@ class SentParser(object):
 		else:
 			emb_inputs = [ dy.concatenate([w, pos]) for w, pos in zip(word_embs,tag_embs)]
 
-		top_recur = dy.concatenate_cols(biLSTM(self.LSTM_builders, emb_inputs, batch_size, self.dropout_lstm_input if isTrain else 0., self.dropout_lstm_hidden if isTrain else 0.))
+		top_recur = biLSTM(self.LSTM_builders, emb_inputs, batch_size, self.dropout_lstm_input if isTrain else 0., self.dropout_lstm_hidden if isTrain else 0.)
+		in_top_recur = biLSTM(self.in_LSTM_builders, emb_inputs, batch_size, self.dropout_lstm_input if isTrain else 0., self.dropout_lstm_hidden if isTrain else 0.)
+		
 		if isTrain:
 			top_recur = dy.dropout_dim(top_recur, 1, self.dropout_mlp)
+			in_top_recur = dy.dropout_dim(in_top_recur, 1, self.dropout_mlp)
+
+		W_choice, b_choice = dy.parameter(self.choice_W), dy.parameter(self.choice_b)
+		W_judge, b_judge = dy.parameter(self.W_judge), dy.parameter(self.b_judge)
+		choice_logits = leaky_relu(dy.affine_transform([b_choice, W_choice, dy.concatenate([dy.average(top_recur), dy.average(in_top_recur)])]))
+		in_decisions = dy.logistic(dy.affine_transform([ b_judge, W_judge, choice_logits]))
+
+		top_recur = (1. - in_decisions) * dy.concatenate_cols(top_recur) + in_decisions * dy.concatenate_cols(in_top_recur)
 
 		W_dep, b_dep = dy.parameter(self.mlp_dep_W), dy.parameter(self.mlp_dep_b)
 		W_head, b_head = dy.parameter(self.mlp_head_W), dy.parameter(self.mlp_head_b)
@@ -128,8 +162,6 @@ class SentParser(object):
 			# #batch_size x #dep x #head
 
 		W_rel = dy.parameter(self.rel_W)
-		#dep_rel = dy.concatenate([dep_rel, dy.inputTensor(np.ones((1, seq_len),dtype=np.float32))])
-		#head_rel = dy.concatenate([head_rel, dy.inputTensor(np.ones((1, seq_len), dtype=np.float32))])
 		rel_logits = bilinear(dep_rel, W_rel, head_rel, self.mlp_rel_size, seq_len, batch_size, num_outputs = self._vocab.rel_size, bias_x = True, bias_y = True)
 		# (#head x rel_size x #dep) x batch_size
 		
@@ -153,6 +185,9 @@ class SentParser(object):
 	
 		if isTrain or arc_targets is not None:
 			loss = arc_loss + rel_loss
+			if domain_loss_scale > 0.:
+				domain_loss = domain_loss_scale * dy.binary_log_loss(in_decisions, dy.inputTensor(in_domains, batched = True))
+			loss += domain_loss
 			correct = rel_correct * dynet_flatten_numpy(arc_correct)
 			overall_accuracy = np.sum(correct) / num_tokens 
 		
@@ -174,7 +209,11 @@ class SentParser(object):
 			return arc_accuracy, rel_accuracy, overall_accuracy, outputs
 		return outputs
 
+	def initialize(self, fixed_file, trainable_file):
+		self._pc.populate(fixed_file)
+		self._trainable_params.populate(trainable_file)
+		
 	def save(self, save_path):
-		self._pc.save(save_path)
+		self._all_params.save(save_path)
 	def load(self, load_path):
-		self._pc.populate(load_path)
+		self._all_params.populate(load_path)

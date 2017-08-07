@@ -94,6 +94,9 @@ class Configurable(object):
 	@property
 	def dropout_mlp(self):
 		return self._config.getfloat('Network','dropout_mlp')
+	@property
+	def choice_size(self):
+		return self._config.getint('Network','choice_size')		
 	
 	@property
 	def learning_rate(self):
