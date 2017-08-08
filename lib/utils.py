@@ -5,7 +5,7 @@ from data import Vocab
 from tarjan import Tarjan
 
 def orthonormal_VanillaLSTMBuilder(lstm_layers, input_dims, lstm_hiddens, pc):
-	builder = dy.VanillaLSTMBuilder(lstm_layers, input_dims, lstm_hiddens, pc)
+	builder = dy.CompactVanillaLSTMBuilder(lstm_layers, input_dims, lstm_hiddens, pc)
 	for layer, params in enumerate(builder.get_parameters()):
 		W = orthonormal_initializer(lstm_hiddens, lstm_hiddens + (lstm_hiddens if layer >0 else input_dims))
 		W_h, W_x = W[:,:lstm_hiddens], W[:,lstm_hiddens:]

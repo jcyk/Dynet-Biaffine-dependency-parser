@@ -176,7 +176,7 @@ class DataLoader(object):
 	def idx_sequence(self):
 		return [x[1] for x in sorted(zip(self._record, range(len(self._record))))]
 	
-	def get_batches(self, batch_size, shuffle= True):
+	def get_batches(self, batch_size, shuffle = True):
 		batches = []
 		for bkt_idx, bucket in enumerate(self._buckets):
 			bucket_len = bucket.shape[1]
@@ -195,4 +195,16 @@ class DataLoader(object):
 			arc_targets = self._buckets[bkt_idx][:,bkt_batch, 2]
 			rel_targets = self._buckets[bkt_idx][:,bkt_batch, 3]
 			yield word_inputs, tag_inputs, arc_targets, rel_targets
+
+class MixedDataLoader(object):
+	def __init__(loaders, ratios):
+		assert isinstance(loaders, list)
+		assert isinstance(ratios, list)
+		self._loaders = loaders
+		self._ratios = ratios
+
+	def get_batches(self, batch_size):
+		generators = [loader.get_batches(int(ratio * batch_size)) for loader, ratio in zip(self._loaders, self._ratios)]
+		for batch_tuple in zip(*generators):
+			yield batch_tuple
 

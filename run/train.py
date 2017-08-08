@@ -5,33 +5,30 @@ sys.path.append('..')
 import dynet as dy
 import numpy as np
 import models
-from lib import Vocab, DataLoader, MixedDataLoader
+from lib import Vocab, DataLoader
 from test import test
 from config import Configurable
+
 import argparse
 if __name__ == "__main__":
 	np.random.seed(666)
 	argparser = argparse.ArgumentParser()
-	argparser.add_argument('--config_file', default='../configs/mixed.cfg')
-	argparser.add_argument('--in_domain_file', default='../../sancl_data/gweb-emails-dev.conll')
+	argparser.add_argument('--config_file', default='../configs/default.cfg')
 	argparser.add_argument('--model', default='BaseParser')
 	args, extra_args = argparser.parse_known_args()
 	config = Configurable(args.config_file, extra_args)
 	Parser = getattr(models, args.model)
 
 	vocab = Vocab(config.train_file, config.pretrained_embeddings_file, config.min_occur_count)
-	vocab.merge_with(Vocab(args.in_domain_file, config.pretrained_embeddings_file, config.min_occur_count))
-
 	cPickle.dump(vocab, open(config.save_vocab_path, 'w'))
-	parser = Parser(vocab, config.word_dims, config.tag_dims,config.dropout_emb, config.lstm_layers, config.lstm_hiddens, config.dropout_lstm_input, config.dropout_lstm_hidden, config.mlp_arc_size, config.mlp_rel_size, config.dropout_mlp, config.choice_size)
-	data_loader = MixedDataLoader([DataLoader(config.train_file, config.num_buckets_train, vocab), DataLoader(args.in_domain_file, config.num_buckets_train, vocab)], [0.5, 0.5])
-
+	parser = Parser(vocab, config.word_dims, config.tag_dims,config.dropout_emb, config.lstm_layers, config.lstm_hiddens, config.dropout_lstm_input, config.dropout_lstm_hidden, config.mlp_arc_size, config.mlp_rel_size, config.dropout_mlp)
+	data_loader = DataLoader(config.train_file, config.num_buckets_train, vocab)
 	pc = parser.parameter_collection
 	trainer = dy.AdamTrainer(pc, config.learning_rate , config.beta_1, config.beta_2, config.epsilon)
 	
 	global_step = 0
 	def update_parameters():
-		trainer.learning_rate = config.learning_rate*config.decay**(global_step / config.decay_steps)
+		trainer.learning_rate =config.learning_rate*config.decay**(global_step / config.decay_steps)
 		trainer.update()
 
 	epoch = 0
@@ -40,11 +37,15 @@ if __name__ == "__main__":
 	while global_step < config.train_iters:
 		print time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), '\nStart training epoch #%d'%(epoch, )
 		epoch += 1
-		for _out, _in in data_loader.get_batches(batch_size = config.train_batch_size):
-			for _inputs in [_out, _in]:
-				words, tags, arcs, rels = _inputs
+		for words, tags, arcs, rels in data_loader.get_batches(batch_size = config.train_batch_size, shuffle = True):
+			num = int(words.shape[1]/2)
+			words_ = [words[:,:num], words[:,num:]]
+			tags_ = [tags[:,:num], tags[:,num:]]
+			arcs_ = [arcs[:,:num], arcs[:,num:]]
+			rels_ = [rels[:,:num], rels[:,num:]] 
+			for step in xrange(2):
 				dy.renew_cg()
-				arc_accuracy, rel_accuracy, overall_accuracy, loss = parser.run(words, tags, arcs, rels)
+				arc_accuracy, rel_accuracy, overall_accuracy, loss = parser.run(words_[step], tags_[step], arcs_[step], rels_[step])
 				loss = loss*0.5
 				loss_value = loss.scalar_value()
 				loss.backward()
