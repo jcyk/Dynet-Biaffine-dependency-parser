@@ -23,7 +23,8 @@ if __name__ == "__main__":
 	vocab.merge_with(Vocab(args.in_domain_file, config.pretrained_embeddings_file, config.min_occur_count))
 
 	cPickle.dump(vocab, open(config.save_vocab_path, 'w'))
-	parser = Parser(vocab, config.word_dims, config.tag_dims,config.dropout_emb, config.lstm_layers, config.lstm_hiddens, config.dropout_lstm_input, config.dropout_lstm_hidden, config.mlp_arc_size, config.mlp_rel_size, config.dropout_mlp, config.choice_size)
+	parser = Parser(vocab, config.word_dims, config.tag_dims,config.dropout_emb, config.lstm_layers, config.lstm_hiddens, config.dropout_lstm_input, config.dropout_lstm_hidden, config.mlp_arc_size, config.mlp_rel_size, config.dropout_mlp)
+	parser.load('../../baseline-sota/ckpt/compact95.58/model')
 	data_loader = MixedDataLoader([DataLoader(config.train_file, config.num_buckets_train, vocab), DataLoader(args.in_domain_file, config.num_buckets_train, vocab)], [0.5, 0.5])
 
 	pc = parser.parameter_collection

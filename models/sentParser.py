@@ -70,14 +70,14 @@ class SentParser(object):
 		self.generate_emb_mask = _emb_mask_generator
 
 		trainable_params = all_params.add_subcollection()
-		self.in_LSTM_builders = []
-		f = orthonormal_VanillaLSTMBuilder(1, word_dims+tag_dims, lstm_hiddens, trainable_params)
-		b = orthonormal_VanillaLSTMBuilder(1, word_dims+tag_dims, lstm_hiddens, trainable_params)
-		self.in_LSTM_builders.append((f,b))
-		for i in xrange(lstm_layers-1):
-			f = orthonormal_VanillaLSTMBuilder(1, 2*lstm_hiddens, lstm_hiddens, trainable_params)
-			b = orthonormal_VanillaLSTMBuilder(1, 2*lstm_hiddens, lstm_hiddens, trainable_params)
-			self.in_LSTM_builders.append((f,b)
+		#self.in_LSTM_builders = []
+		#f = orthonormal_VanillaLSTMBuilder(1, word_dims+tag_dims, lstm_hiddens, trainable_params)
+		#b = orthonormal_VanillaLSTMBuilder(1, word_dims+tag_dims, lstm_hiddens, trainable_params)
+		#self.in_LSTM_builders.append((f,b))
+		#for i in xrange(lstm_layers-1):
+		#	f = orthonormal_VanillaLSTMBuilder(1, 2*lstm_hiddens, lstm_hiddens, trainable_params)
+		#	b = orthonormal_VanillaLSTMBuilder(1, 2*lstm_hiddens, lstm_hiddens, trainable_params)
+		#	self.in_LSTM_builders.append((f,b))
 
 		self.choice_W = trainable_params.add_parameters((choice_size, 2*lstm_hiddens), init = dy.ConstInitializer(0.))
 		self.choice_b = trainable_params.add_parameters((choice_size,), init = dy.ConstInitializer(0.))
@@ -209,10 +209,13 @@ class SentParser(object):
 			return arc_accuracy, rel_accuracy, overall_accuracy, outputs
 		return outputs
 
-	def initialize(self, fixed_file, trainable_file):
+	def initialize(self, fixed_params, in_domain_params):
 		self._pc.populate(fixed_file)
-		self._trainable_params.populate(trainable_file)
-		
+		params = dy.load(in_domain_params,self._trainable_params)
+		self.in_LSTM_builders = []
+		for f,b in zip(params[::2], params[1::2]):
+			self.in_LSTM_builders.append((f,b))
+			
 	def save(self, save_path):
 		self._all_params.save(save_path)
 	def load(self, load_path):
