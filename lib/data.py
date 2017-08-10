@@ -104,8 +104,8 @@ class Vocab(object):
 
 	def rel2id(self, xs):
 		if isinstance(xs, list):
-			return [self._rel2id[x] for x in xs]
-		return self._rel2id[xs]
+			return [self._rel2id.get(x, self.PAD) for x in xs]
+		return self._rel2id.get(xs, self.PAD)
 
 	def id2rel(self,xs):
 		if isinstance(xs, list):

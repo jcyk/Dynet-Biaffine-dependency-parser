@@ -9,7 +9,7 @@ class NotagParser(object):
 	def __init__(self, vocab,
 					   word_dims,
 					   tag_dims,
-					   dropout_dim,
+					   dropout_emb,
 					   lstm_layers,
 					   lstm_hiddens,
 					   dropout_lstm_input,
@@ -49,7 +49,7 @@ class NotagParser(object):
 		self.rel_W = pc.add_parameters((vocab.rel_size*(mlp_rel_size +1) , mlp_rel_size + 1), init = dy.ConstInitializer(0.))
 
 		self._pc = pc
-		self.dropout_dim = dropout_dim
+		self.dropout_emb = dropout_emb
 
 	@property 
 	def parameter_collection(self):
@@ -72,7 +72,7 @@ class NotagParser(object):
 		word_embs = [dy.lookup_batch(self.word_embs, np.where( w<self._vocab.words_in_train, w, self._vocab.UNK)) + dy.lookup_batch(self.pret_word_embs, w, update = False) for w in word_inputs]
 		
 		if isTrain:
-			word_embs= [ dy.dropout_dim(w, 0, self.dropout_dim) for w in word_embs]
+			word_embs= [ dy.dropout_dim(w, 0, self.dropout_emb) for w in word_embs]
 
 		top_recur = dy.concatenate_cols(biLSTM(self.LSTM_builders, emb_inputs, batch_size, self.dropout_lstm_input if isTrain else 0., self.dropout_lstm_hidden if isTrain else 0.))
 		if isTrain:

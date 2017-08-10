@@ -52,7 +52,7 @@ if __name__ == '__main__':
     argparser.add_argument('--model', default='BaseParser')
     argparser.add_argument('--output_file', default='here')
     args, extra_args = argparser.parse_known_args()
-    config = Configurable(args.config_file, extra_args)
+    config = Configurable(args.config_file, extra_args, for_test = True)
     Parser = getattr(models, args.model)
     vocab = cPickle.load(open(config.load_vocab_path))
     if args.model == 'BaseParser':

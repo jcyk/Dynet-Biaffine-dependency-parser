@@ -23,7 +23,7 @@ if __name__ == "__main__":
 	Parser = getattr(models, args.model)
 
 	vocab = Vocab(config.train_file, config.pretrained_embeddings_file, config.min_occur_count)
-	vocab.merge_with(Vocab(args.in_domain_file, config.pretrained_embeddings_file, config.min_occur_count))
+	#vocab.merge_with(Vocab(args.in_domain_file, config.pretrained_embeddings_file, config.min_occur_count))
 
 	cPickle.dump(vocab, open(config.save_vocab_path, 'w'))
 	if args.model == 'BaseParser':

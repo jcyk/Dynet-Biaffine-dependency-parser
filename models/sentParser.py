@@ -9,7 +9,7 @@ class SentParser(object):
 	def __init__(self, vocab,
 					   word_dims,
 					   tag_dims,
-					   dropout_dim,
+					   dropout_emb,
 					   lstm_layers,
 					   lstm_hiddens,
 					   dropout_lstm_input,
@@ -58,8 +58,8 @@ class SentParser(object):
 		def _emb_mask_generator(seq_len, batch_size):
 			ret = []
 			for i in xrange(seq_len):
-				word_mask = np.random.binomial(1, 1. - dropout_dim, batch_size).astype(np.float32)
-				tag_mask = np.random.binomial(1, 1. - dropout_dim, batch_size).astype(np.float32)
+				word_mask = np.random.binomial(1, 1. - dropout_emb, batch_size).astype(np.float32)
+				tag_mask = np.random.binomial(1, 1. - dropout_emb, batch_size).astype(np.float32)
 				scale = 3. / (2.*word_mask + tag_mask + 1e-12)
 				word_mask *= scale
 				tag_mask *= scale
@@ -202,8 +202,9 @@ class SentParser(object):
 		return outputs
 
 	def initialize(self, fixed_params, in_domain_params):
+		# in_domain_params : list of LSTM builders (forward-backward, bottom-up)
 		self._pc.populate(fixed_params)
-		params = dy.load(in_domain_params,self._trainable_params)
+		params = dy.load(in_domain_params, self._trainable_params)
 		self.in_LSTM_builders = []
 		for f,b in zip(params[::2], params[1::2]):
 			self.in_LSTM_builders.append((f,b))

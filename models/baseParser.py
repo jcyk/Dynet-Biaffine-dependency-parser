@@ -9,7 +9,7 @@ class BaseParser(object):
 	def __init__(self, vocab,
 					   word_dims,
 					   tag_dims,
-					   dropout_dim,
+					   dropout_emb,
 					   lstm_layers,
 					   lstm_hiddens,
 					   dropout_lstm_input,
@@ -19,7 +19,7 @@ class BaseParser(object):
 					   dropout_mlp,
 					   ):
 		pc = dy.ParameterCollection()
-
+		
 		self._vocab = vocab
 		self.word_embs = pc.lookup_parameters_from_numpy(vocab.get_word_embs(word_dims))
 		self.pret_word_embs = pc.lookup_parameters_from_numpy(vocab.get_pret_embs())
@@ -54,8 +54,8 @@ class BaseParser(object):
 		def _emb_mask_generator(seq_len, batch_size):
 			ret = []
 			for i in xrange(seq_len):
-				word_mask = np.random.binomial(1, 1. - dropout_dim, batch_size).astype(np.float32)
-				tag_mask = np.random.binomial(1, 1. - dropout_dim, batch_size).astype(np.float32)
+				word_mask = np.random.binomial(1, 1. - dropout_emb, batch_size).astype(np.float32)
+				tag_mask = np.random.binomial(1, 1. - dropout_emb, batch_size).astype(np.float32)
 				scale = 3. / (2.*word_mask + tag_mask + 1e-12)
 				word_mask *= scale
 				tag_mask *= scale

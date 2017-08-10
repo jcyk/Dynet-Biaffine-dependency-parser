@@ -4,7 +4,7 @@ sys.path.append('..')
 import models
 
 class Configurable(object):
-	def __init__(self, config_file, extra_args):
+	def __init__(self, config_file, extra_args, for_test = False):
 		config = SafeConfigParser()
 		config.read(config_file)
 		if extra_args:
@@ -15,9 +15,10 @@ class Configurable(object):
 					v = type(v)(extra_args[k])
 					config.set(section, k, v)
 		self._config = config
-		if not os.path.isdir(self.save_dir):
-			os.mkdir(self.save_dir)
-		config.write(open(self.config_file,'w'))
+		if not for_test:
+			if not os.path.isdir(self.save_dir):
+				os.mkdir(self.save_dir)
+			config.write(open(self.config_file,'w'))
 		print 'Loaded config file sucessfully.'
 		for section in config.sections():
 			for k, v in config.items(section):
