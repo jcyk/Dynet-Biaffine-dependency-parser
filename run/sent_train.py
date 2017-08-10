@@ -24,7 +24,7 @@ if __name__ == "__main__":
 
 	cPickle.dump(vocab, open(config.save_vocab_path, 'w'))
 	parser = Parser(vocab, config.word_dims, config.tag_dims,config.dropout_emb, config.lstm_layers, config.lstm_hiddens, config.dropout_lstm_input, config.dropout_lstm_hidden, config.mlp_arc_size, config.mlp_rel_size, config.dropout_mlp)
-	parser.load('../../baseline-sota/ckpt/compact95.58/model')
+	parser.initialize('../../baseline-sota/ckpt/compact95.58/model', '../../baseline-sota/params')
 	data_loader = MixedDataLoader([DataLoader(config.train_file, config.num_buckets_train, vocab), DataLoader(args.in_domain_file, config.num_buckets_test, vocab)], [0.5, 0.5])
 
 	pc = parser.parameter_collection

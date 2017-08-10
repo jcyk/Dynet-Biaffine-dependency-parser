@@ -70,14 +70,6 @@ class SentParser(object):
 		self.generate_emb_mask = _emb_mask_generator
 
 		trainable_params = all_params.add_subcollection()
-		#self.in_LSTM_builders = []
-		#f = orthonormal_VanillaLSTMBuilder(1, word_dims+tag_dims, lstm_hiddens, trainable_params)
-		#b = orthonormal_VanillaLSTMBuilder(1, word_dims+tag_dims, lstm_hiddens, trainable_params)
-		#self.in_LSTM_builders.append((f,b))
-		#for i in xrange(lstm_layers-1):
-		#	f = orthonormal_VanillaLSTMBuilder(1, 2*lstm_hiddens, lstm_hiddens, trainable_params)
-		#	b = orthonormal_VanillaLSTMBuilder(1, 2*lstm_hiddens, lstm_hiddens, trainable_params)
-		#	self.in_LSTM_builders.append((f,b))
 
 		self.choice_W = trainable_params.add_parameters((choice_size, 2*lstm_hiddens), init = dy.ConstInitializer(0.))
 		self.choice_b = trainable_params.add_parameters((choice_size,), init = dy.ConstInitializer(0.))
