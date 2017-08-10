@@ -12,9 +12,9 @@ import argparse
 if __name__ == "__main__":
 	np.random.seed(666)
 	argparser = argparse.ArgumentParser()
-	argparser.add_argument('--config_file', default='../configs/mixed.cfg')
+	argparser.add_argument('--config_file', default='../configs/sent.cfg')
 	argparser.add_argument('--in_domain_file', default='../../sancl_data/gweb-emails-dev.conll')
-	argparser.add_argument('--model', default='BaseParser')
+	argparser.add_argument('--model', default='SentParser')
 	args, extra_args = argparser.parse_known_args()
 	config = Configurable(args.config_file, extra_args)
 	Parser = getattr(models, args.model)
@@ -24,7 +24,7 @@ if __name__ == "__main__":
 
 	cPickle.dump(vocab, open(config.save_vocab_path, 'w'))
 	parser = Parser(vocab, config.word_dims, config.tag_dims,config.dropout_emb, config.lstm_layers, config.lstm_hiddens, config.dropout_lstm_input, config.dropout_lstm_hidden, config.mlp_arc_size, config.mlp_rel_size, config.dropout_mlp)
-	parser.initialize('../../baseline-sota/ckpt/compact95.58/model', '../../baseline-sota/params')
+	parser.initialize('../../pretrained/compact95.58/model', '../../pretrained/params')
 	data_loader = MixedDataLoader([DataLoader(config.train_file, config.num_buckets_train, vocab), DataLoader(args.in_domain_file, config.num_buckets_test, vocab)], [0.5, 0.5])
 
 	pc = parser.parameter_collection
