@@ -29,12 +29,13 @@ if __name__ == "__main__":
 	if args.model == 'BaseParser':
 		parser = Parser(vocab, config.word_dims, config.tag_dims, config.dropout_emb, config.lstm_layers, config.lstm_hiddens, config.dropout_lstm_input, config.dropout_lstm_hidden, config.mlp_arc_size, config.mlp_rel_size, config.dropout_mlp)
 		parser.load(args.baseline_model)
+		pc = parser.parameter_collection
 	elif args.model == 'SentParser':
 		parser = Parser(vocab, config.word_dims, config.tag_dims, config.dropout_emb, config.lstm_layers, config.lstm_hiddens, config.dropout_lstm_input, config.dropout_lstm_hidden, config.mlp_arc_size, config.mlp_rel_size, config.dropout_mlp, config.choice_size)
 		parser.initialize(args.baseline_model, args.pretrained_LSTMs)
+		pc = parser.trainable_parameter_collection
+	
 	data_loader = MixedDataLoader([DataLoader(config.train_file, config.num_buckets_train, vocab), DataLoader(args.in_domain_file, config.num_buckets_test, vocab)], [0.5, 0.5])
-
-	pc = parser.parameter_collection
 	trainer = dy.AdamTrainer(pc, config.learning_rate , config.beta_1, config.beta_2, config.epsilon)
 	
 	global_step = 0

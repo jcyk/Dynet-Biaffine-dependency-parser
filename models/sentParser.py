@@ -109,19 +109,19 @@ class SentParser(object):
 		else:
 			emb_inputs = [ dy.concatenate([w, pos]) for w, pos in zip(word_embs,tag_embs)]
 
-		top_recur = biLSTM(self.LSTM_builders, emb_inputs, batch_size, self.dropout_lstm_input if isTrain else 0., self.dropout_lstm_hidden if isTrain else 0.)
-		in_top_recur = biLSTM(self.in_LSTM_builders, emb_inputs, batch_size, self.dropout_lstm_input if isTrain else 0., self.dropout_lstm_hidden if isTrain else 0.)
+		top_recur = dy.concatenate_cols(biLSTM(self.LSTM_builders, emb_inputs, batch_size, self.dropout_lstm_input if isTrain else 0., self.dropout_lstm_hidden if isTrain else 0.))
+		in_top_recur = dy.concatenate_cols(biLSTM(self.in_LSTM_builders, emb_inputs, batch_size, self.dropout_lstm_input if isTrain else 0., self.dropout_lstm_hidden if isTrain else 0.))
 		
 		if isTrain:
 			top_recur = dy.dropout_dim(top_recur, 1, self.dropout_mlp)
 			in_top_recur = dy.dropout_dim(in_top_recur, 1, self.dropout_mlp)
 
 		W_choice, b_choice = dy.parameter(self.choice_W), dy.parameter(self.choice_b)
-		W_judge, b_judge = dy.parameter(self.W_judge), dy.parameter(self.b_judge)
-		choice_logits = leaky_relu(dy.affine_transform([b_choice, W_choice, dy.concatenate([dy.average(top_recur), dy.average(in_top_recur)])]))
-		in_decisions = dy.logistic(dy.affine_transform([ b_judge, W_judge, choice_logits]))
+		W_judge, b_judge = dy.parameter(self.judge_W), dy.parameter(self.judge_b)
+		choice_logits = leaky_relu(dy.affine_transform([b_choice, W_choice, dy.concatenate([dy.mean_dim(top_recur, 0), dy.mean_dim(in_top_recur, 0)])]))
+		in_decisions = dy.logistic(dy.affine_transform([b_judge, W_judge, choice_logits]))
 
-		top_recur = (1. - in_decisions) * dy.concatenate_cols(top_recur) + in_decisions * dy.concatenate_cols(in_top_recur)
+		top_recur = (1. - in_decisions) * top_recur + in_decisions * in_top_recur
 
 		W_dep, b_dep = dy.parameter(self.mlp_dep_W), dy.parameter(self.mlp_dep_b)
 		W_head, b_head = dy.parameter(self.mlp_head_W), dy.parameter(self.mlp_head_b)
