@@ -118,10 +118,10 @@ class SentParser(object):
 
 		W_choice, b_choice = dy.parameter(self.choice_W), dy.parameter(self.choice_b)
 		W_judge, b_judge = dy.parameter(self.judge_W), dy.parameter(self.judge_b)
-		choice_logits = leaky_relu(dy.affine_transform([b_choice, W_choice, dy.concatenate([dy.mean_dim(top_recur, 0), dy.mean_dim(in_top_recur, 0)])]))
+		choice_logits = leaky_relu(dy.affine_transform([b_choice, W_choice, dy.mean_dim(top_recur, 1)]))
 		in_decisions = dy.logistic(dy.affine_transform([b_judge, W_judge, choice_logits]))
 
-		top_recur = (1. - in_decisions) * top_recur + in_decisions * in_top_recur
+		top_recur = dy.cmult(1. - in_decisions, top_recur) + dy.cmult(in_decisions, in_top_recur)
 
 		W_dep, b_dep = dy.parameter(self.mlp_dep_W), dy.parameter(self.mlp_dep_b)
 		W_head, b_head = dy.parameter(self.mlp_head_W), dy.parameter(self.mlp_head_b)
@@ -179,7 +179,7 @@ class SentParser(object):
 			loss = arc_loss + rel_loss
 			if domain_loss_scale > 0.:
 				domain_loss = domain_loss_scale * dy.binary_log_loss(in_decisions, dy.inputTensor(in_domains, batched = True))
-			loss += domain_loss
+				loss += domain_loss
 			correct = rel_correct * dynet_flatten_numpy(arc_correct)
 			overall_accuracy = np.sum(correct) / num_tokens 
 		
