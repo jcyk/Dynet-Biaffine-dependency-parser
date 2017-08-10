@@ -1,5 +1,5 @@
 python train.py \
---config_file ../configs/sent.cfg
+--config_file ../configs/sent.cfg \
 --in_domain_file ../../sancl_data/gweb-emails-dev.conll \
 --model SentParser \
 --dev_file ../../sancl_data/gweb-emails-test.conll \
@@ -9,7 +9,7 @@ python train.py \
 --dynet-gpu
 
 python train.py \
---config_file ../configs/sent.cfg
+--config_file ../configs/sent.cfg \
 --in_domain_file ../../sancl_data/gweb-answers-dev.conll \
 --model SentParser \
 --dev_file ../../sancl_data/gweb-answers-test.conll \
@@ -19,7 +19,7 @@ python train.py \
 --dynet-gpu
 
 python train.py \
---config_file ../configs/sent.cfg
+--config_file ../configs/sent.cfg \
 --in_domain_file ../../sancl_data/gweb-newsgroups-dev.conll \
 --model SentParser \
 --dev_file ../../sancl_data/gweb-newsgroups-test.conll \
@@ -29,7 +29,7 @@ python train.py \
 --dynet-gpu
 
 python train.py \
---config_file ../configs/sent.cfg
+--config_file ../configs/sent.cfg \
 --in_domain_file ../../sancl_data/gweb-reviews-dev.conll \
 --model SentParser \
 --dev_file ../../sancl_data/gweb-reviews-test.conll \
@@ -39,7 +39,7 @@ python train.py \
 --dynet-gpu
 
 python train.py \
---config_file ../configs/sent.cfg
+--config_file ../configs/sent.cfg \
 --in_domain_file ../../sancl_data/gweb-weblogs-dev.conll \
 --model SentParser \
 --dev_file ../../sancl_data/gweb-weblogs-test.conll \

@@ -16,7 +16,7 @@ if __name__ == "__main__":
 	argparser.add_argument('--in_domain_file', default='../../sancl_data/gweb-emails-dev.conll')
 	argparser.add_argument('--model', default='SentParser')
 	argparser.add_argument('--baseline_model', default='../../pretrained/compact95.58/model')
-	argparser.add_argument('--pretrained_LSTMs', default='../../pretrained/compact95.58/model')
+	argparser.add_argument('--pretrained_LSTMs', default='../../pretrained/params')
 
 	args, extra_args = argparser.parse_known_args()
 	config = Configurable(args.config_file, extra_args)

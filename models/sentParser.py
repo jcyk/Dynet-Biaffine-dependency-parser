@@ -202,7 +202,7 @@ class SentParser(object):
 		return outputs
 
 	def initialize(self, fixed_params, in_domain_params):
-		self._pc.populate(fixed_file)
+		self._pc.populate(fixed_params)
 		params = dy.load(in_domain_params,self._trainable_params)
 		self.in_LSTM_builders = []
 		for f,b in zip(params[::2], params[1::2]):
