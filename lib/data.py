@@ -205,4 +205,3 @@ class MixedDataLoader(object):
 		generators = [loader.get_batches(int(ratio * batch_size)) for loader, ratio in zip(self._loaders, self._ratios)]
 		for batch_tuple in zip(*generators):
 			yield batch_tuple
-
