@@ -20,6 +20,16 @@ python train.py \
 
 python train.py \
 --config_file ../configs/sent.cfg \
+--in_domain_file ../../sancl_data/gweb-weblogs-dev.conll \
+--model SentParser \
+--dev_file ../../sancl_data/gweb-weblogs-test.conll \
+--test_file ../../sancl_data/gweb-weblogs-test.conll \
+--save_dir ../ckpt/mixed-weblogs \
+--load_dir ../ckpt/mixed-weblogs \
+--dynet-gpu
+
+python train.py \
+--config_file ../configs/sent.cfg \
 --in_domain_file ../../sancl_data/gweb-newsgroups-dev.conll \
 --model SentParser \
 --dev_file ../../sancl_data/gweb-newsgroups-test.conll \
@@ -36,14 +46,4 @@ python train.py \
 --test_file ../../sancl_data/gweb-reviews-test.conll \
 --save_dir ../ckpt/mixed-reviews \
 --load_dir ../ckpt/mixed-reviews \
---dynet-gpu
-
-python train.py \
---config_file ../configs/sent.cfg \
---in_domain_file ../../sancl_data/gweb-weblogs-dev.conll \
---model SentParser \
---dev_file ../../sancl_data/gweb-weblogs-test.conll \
---test_file ../../sancl_data/gweb-weblogs-test.conll \
---save_dir ../ckpt/mixed-weblogs \
---load_dir ../ckpt/mixed-weblogs \
 --dynet-gpu
