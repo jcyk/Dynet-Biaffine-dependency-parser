@@ -1,5 +1,6 @@
 python test.py \
 --config_file ../ckpt/mixed-emails/config.cfg \
+--model SentParser \
 --dynet-gpu
 
 #python test.py \

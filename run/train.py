@@ -17,6 +17,7 @@ if __name__ == "__main__":
 	argparser.add_argument('--model', default='SentParser')
 	argparser.add_argument('--baseline_path', default='../../pretrained/compact95.62')
 	argparser.add_argument('--pretrained_LSTMs', default='../../pretrained/params95.62')
+	argparser.add_argument('--domain_loss_scale', default = 0.)
 
 	args, extra_args = argparser.parse_known_args()
 	config = Configurable(args.config_file, extra_args)
@@ -48,10 +49,13 @@ if __name__ == "__main__":
 		print time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), '\nStart training epoch #%d'%(epoch, )
 		epoch += 1
 		for _out, _in in data_loader.get_batches(batch_size = config.train_batch_size):
-			for _inputs in [_out, _in]:
+			for domain, _inputs in enumerate([_out, _in]):
 				words, tags, arcs, rels = _inputs
 				dy.renew_cg()
-				arc_accuracy, rel_accuracy, overall_accuracy, loss = parser.run(words, tags, arcs, rels)
+				if args.domain_loss_scale > 0.:
+					arc_accuracy, rel_accuracy, overall_accuracy, loss = parser.run(words, tags, arcs, rels, in_domains = [domain]*words.shape[1], domain_loss_scale = args.domain_loss_scale)
+				else:
+					arc_accuracy, rel_accuracy, overall_accuracy, loss = parser.run(words, tags, arcs, rels)
 				loss = loss*0.5
 				loss_value = loss.scalar_value()
 				loss.backward()
