@@ -17,7 +17,7 @@ if __name__ == "__main__":
 	argparser.add_argument('--model', default='SentParser')
 	argparser.add_argument('--baseline_path', default='../../pretrained/compact95.62')
 	argparser.add_argument('--pretrained_LSTMs', default='../../pretrained/params95.62')
-	argparser.add_argument('--domain_loss_scale', default = 0.)
+	argparser.add_argument('--domain_loss_scale', type=float, default = 0.)
 
 	args, extra_args = argparser.parse_known_args()
 	config = Configurable(args.config_file, extra_args)

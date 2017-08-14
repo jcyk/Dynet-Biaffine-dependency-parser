@@ -178,7 +178,7 @@ class SentParser(object):
 		if isTrain or arc_targets is not None:
 			loss = arc_loss + rel_loss
 			if domain_loss_scale > 0.:
-				domain_loss = domain_loss_scale * dy.binary_log_loss(in_decisions, dy.inputTensor(in_domains, batched = True))
+				domain_loss = (domain_loss_scale / batch_size) * dy.sum_batches(dy.binary_log_loss(in_decisions, dy.inputTensor(in_domains, batched = True)))
 				loss += domain_loss
 			correct = rel_correct * dynet_flatten_numpy(arc_correct)
 			overall_accuracy = np.sum(correct) / num_tokens 
