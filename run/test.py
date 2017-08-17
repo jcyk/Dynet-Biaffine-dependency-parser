@@ -56,11 +56,8 @@ if __name__ == '__main__':
     Parser = getattr(models, args.model)
     vocab = cPickle.load(open(config.load_vocab_path))
     if args.model == 'BaseParser':
-        parser = Parser(vocab, config.word_dims, config.tag_dims, config.dropout_emb, config.lstm_layers, config.lstm_hiddens, config.dropout_lstm_input, config.dropout_lstm_hidden, config.mlp_arc_size, config.mlp_rel_size, config.dropout_mlp)
+        parser = Parser(vocab, config.word_dims, config.tag_dims, config.dropout_emb, config.lstm_layers, config.lstm_hiddens, config.dropout_lstm_input, config.dropout_lstm_hidden, config.mlp_arc_size, config.mlp_rel_size, config.dropout_mlp, randn_init = True)
     elif args.model == 'SentParser':
-        parser = Parser(vocab, config.word_dims, config.tag_dims, config.dropout_emb, config.lstm_layers, config.lstm_hiddens, config.dropout_lstm_input, config.dropout_lstm_hidden, config.mlp_arc_size, config.mlp_rel_size, config.dropout_mlp, config.choice_size)
-        args_baseline_path = '../../pretrained/compact95.62/model'
-        args_pretrained_LSTMs = '../../pretrained/params95.62'
-        parser.initialize(args_baseline_path, args_pretrained_LSTMs)
+        parser = Parser(vocab, config.word_dims, config.tag_dims, config.dropout_emb, config.lstm_layers, config.lstm_hiddens, config.dropout_lstm_input, config.dropout_lstm_hidden, config.mlp_arc_size, config.mlp_rel_size, config.dropout_mlp, config.choice_size, randn_init = True)
     parser.load(config.load_model_path)
     test(parser, vocab, config.num_buckets_test, config.test_batch_size, config.test_file, args.output_file)

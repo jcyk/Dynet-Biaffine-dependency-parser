@@ -2,6 +2,7 @@ python train.py \
 --config_file ../configs/sent.cfg \
 --in_domain_file ../../sancl_data/gweb-emails-dev.conll \
 --model SentParser \
+--domain_loss_scale 0.1 \
 --dev_file ../../sancl_data/gweb-emails-test.conll \
 --test_file ../../sancl_data/gweb-emails-test.conll \
 --save_dir ../ckpt/mixed-emails \

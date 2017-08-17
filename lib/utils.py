@@ -4,10 +4,10 @@ import numpy as np
 from data import Vocab
 from tarjan import Tarjan
 
-def orthonormal_VanillaLSTMBuilder(lstm_layers, input_dims, lstm_hiddens, pc):
+def orthonormal_VanillaLSTMBuilder(lstm_layers, input_dims, lstm_hiddens, pc, randn_init = False):
 	builder = dy.CompactVanillaLSTMBuilder(lstm_layers, input_dims, lstm_hiddens, pc)
 	for layer, params in enumerate(builder.get_parameters()):
-		W = orthonormal_initializer(lstm_hiddens, lstm_hiddens + (lstm_hiddens if layer >0 else input_dims))
+		W = orthonormal_initializer(lstm_hiddens, lstm_hiddens + (lstm_hiddens if layer >0 else input_dims), randn_init)
 		W_h, W_x = W[:,:lstm_hiddens], W[:,lstm_hiddens:]
 		params[0].set_value(np.concatenate([W_x]*4, 0))
 		params[1].set_value(np.concatenate([W_h]*4, 0))
@@ -51,11 +51,13 @@ def bilinear(x, W, y, input_size, seq_len, batch_size, num_outputs = 1, bias_x =
 	return blin
 
 
-def orthonormal_initializer(output_size, input_size):
+def orthonormal_initializer(output_size, input_size, randn_init):
 	"""
 	adopted from Timothy Dozat https://github.com/tdozat/Parser/blob/master/lib/linalg.py
 	"""
 	print (output_size, input_size)
+	if randn_init:
+		return np.random.randn(output_size, input_size).astype(np.float32)
 	I = np.eye(output_size)
 	lr = .1
 	eps = .05/(output_size + input_size)

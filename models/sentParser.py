@@ -17,12 +17,13 @@ class SentParser(object):
 					   mlp_arc_size,
 					   mlp_rel_size,
 					   dropout_mlp,
-					   choice_size
+					   choice_size,
+					   randn_init = False
 					   ):
 
 		all_params = dy.ParameterCollection()
-		self._all_params = all_params
 		pc = all_params.add_subcollection()
+		trainable_params = all_params.add_subcollection()
 
 		self._vocab = vocab
 		self.word_embs = pc.lookup_parameters_from_numpy(vocab.get_word_embs(word_dims))
@@ -30,18 +31,18 @@ class SentParser(object):
 		self.tag_embs = pc.lookup_parameters_from_numpy(vocab.get_tag_embs(tag_dims))
 		
 		self.LSTM_builders = []
-		f = orthonormal_VanillaLSTMBuilder(1, word_dims+tag_dims, lstm_hiddens, pc)
-		b = orthonormal_VanillaLSTMBuilder(1, word_dims+tag_dims, lstm_hiddens, pc)
+		f = orthonormal_VanillaLSTMBuilder(1, word_dims+tag_dims, lstm_hiddens, pc, randn_init)
+		b = orthonormal_VanillaLSTMBuilder(1, word_dims+tag_dims, lstm_hiddens, pc, randn_init)
 		self.LSTM_builders.append((f,b))
 		for i in xrange(lstm_layers-1):
-			f = orthonormal_VanillaLSTMBuilder(1, 2*lstm_hiddens, lstm_hiddens, pc)
-			b = orthonormal_VanillaLSTMBuilder(1, 2*lstm_hiddens, lstm_hiddens, pc)
+			f = orthonormal_VanillaLSTMBuilder(1, 2*lstm_hiddens, lstm_hiddens, pc, randn_init)
+			b = orthonormal_VanillaLSTMBuilder(1, 2*lstm_hiddens, lstm_hiddens, pc, randn_init)
 			self.LSTM_builders.append((f,b))
 		self.dropout_lstm_input = dropout_lstm_input
 		self.dropout_lstm_hidden = dropout_lstm_hidden
 
 		mlp_size = mlp_arc_size+mlp_rel_size
-		W = orthonormal_initializer(mlp_size, 2*lstm_hiddens)
+		W = orthonormal_initializer(mlp_size, 2*lstm_hiddens, randn_init)
 		self.mlp_dep_W = pc.parameters_from_numpy(W)
 		self.mlp_head_W = pc.parameters_from_numpy(W)
 		self.mlp_dep_b = pc.add_parameters((mlp_size,), init = dy.ConstInitializer(0.))
@@ -52,8 +53,6 @@ class SentParser(object):
 
 		self.arc_W = pc.add_parameters((mlp_arc_size, mlp_arc_size + 1), init = dy.ConstInitializer(0.))
 		self.rel_W = pc.add_parameters((vocab.rel_size*(mlp_rel_size +1) , mlp_rel_size + 1), init = dy.ConstInitializer(0.))
-
-		self._pc = pc
 
 		def _emb_mask_generator(seq_len, batch_size):
 			ret = []
@@ -69,14 +68,23 @@ class SentParser(object):
 			return ret
 		self.generate_emb_mask = _emb_mask_generator
 
-		trainable_params = all_params.add_subcollection()
-
 		self.choice_W = trainable_params.add_parameters((choice_size, 2*lstm_hiddens), init = dy.ConstInitializer(0.))
 		self.choice_b = trainable_params.add_parameters((choice_size,), init = dy.ConstInitializer(0.))
 		self.judge_W = trainable_params.add_parameters((1, choice_size), init = dy.ConstInitializer(0.))
 		self.judge_b = trainable_params.add_parameters((1,), init = dy.ConstInitializer(0.))
-		self._trainable_params = trainable_params
+
+		self.in_LSTM_builders = []
+		f = orthonormal_VanillaLSTMBuilder(1, word_dims+tag_dims, lstm_hiddens, trainable_params, randn_init)
+		b = orthonormal_VanillaLSTMBuilder(1, word_dims+tag_dims, lstm_hiddens, trainable_params, randn_init)
+		self.in_LSTM_builders.append((f,b))
+		for i in xrange(lstm_layers-1):
+			f = orthonormal_VanillaLSTMBuilder(1, 2*lstm_hiddens, lstm_hiddens, trainable_params, randn_init)
+			b = orthonormal_VanillaLSTMBuilder(1, 2*lstm_hiddens, lstm_hiddens, trainable_params, randn_init)
+			self.in_LSTM_builders.append((f,b))
+
 		self._all_params = all_params
+		self._pc = pc
+		self._trainable_params = trainable_params
 
 	@property
 	def all_paramter_collection(self):
@@ -201,14 +209,12 @@ class SentParser(object):
 			return arc_accuracy, rel_accuracy, overall_accuracy, outputs
 		return outputs
 
-	def initialize(self, fixed_params, in_domain_params):
-		# in_domain_params : list of LSTM builders (forward-backward, bottom-up)
+	def initialize(self, baseline_params):
 		self._pc.populate(fixed_params)
-		params = dy.load(in_domain_params, self._trainable_params)
-		self.in_LSTM_builders = []
-		for f,b in zip(params[::2], params[1::2]):
-			self.in_LSTM_builders.append((f,b))
-			
+		for (f,b), (in_f, in_b) in zip(self.LSTM_builders, self.in_LSTM_builders):
+			for param, in_param in zip(f.get_parameters(), in_f.get_parameters):
+				in_param.set_value(param.as_array())
+
 	def save(self, save_path):
 		self._all_params.save(save_path)
 	def load(self, load_path):

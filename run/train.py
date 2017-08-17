@@ -16,7 +16,6 @@ if __name__ == "__main__":
 	argparser.add_argument('--in_domain_file', default='../../sancl_data/gweb-emails-dev.conll')
 	argparser.add_argument('--model', default='SentParser')
 	argparser.add_argument('--baseline_path', default='../../pretrained/compact95.62')
-	argparser.add_argument('--pretrained_LSTMs', default='../../pretrained/params95.62')
 	argparser.add_argument('--domain_loss_scale', type=float, default = 0.)
 
 	args, extra_args = argparser.parse_known_args()
@@ -31,7 +30,7 @@ if __name__ == "__main__":
 		pc = parser.parameter_collection
 	elif args.model == 'SentParser':
 		parser = Parser(vocab, config.word_dims, config.tag_dims, config.dropout_emb, config.lstm_layers, config.lstm_hiddens, config.dropout_lstm_input, config.dropout_lstm_hidden, config.mlp_arc_size, config.mlp_rel_size, config.dropout_mlp, config.choice_size)
-		parser.initialize(os.path.join(args.baseline_path,'model'), args.pretrained_LSTMs)
+		parser.initialize(os.path.join(args.baseline_path,'model'))
 		pc = parser.trainable_parameter_collection
 	
 	data_loader = MixedDataLoader([DataLoader(config.train_file, config.num_buckets_train, vocab), DataLoader(args.in_domain_file, config.num_buckets_test, vocab)], [0.5, 0.5])
