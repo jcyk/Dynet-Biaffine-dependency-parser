@@ -68,7 +68,7 @@ class SentParser(object):
 			return ret
 		self.generate_emb_mask = _emb_mask_generator
 
-		self.choice_W = trainable_params.add_parameters((choice_size, 2*lstm_hiddens), init = dy.ConstInitializer(0.))
+		self.choice_W = trainable_params.parameters_from_numpy(orthonormal_initializer(choice_size, 2*lstm_hiddens))
 		self.choice_b = trainable_params.add_parameters((choice_size,), init = dy.ConstInitializer(0.))
 		self.judge_W = trainable_params.add_parameters((1, choice_size), init = dy.ConstInitializer(0.))
 		self.judge_b = trainable_params.add_parameters((1,), init = dy.ConstInitializer(0.))
@@ -87,8 +87,8 @@ class SentParser(object):
 		self._trainable_params = trainable_params
 
 	@property
-	def all_paramter_collection(self):
-		self._all_params
+	def all_parameter_collection(self):
+		return self._all_params
 
 	@property 
 	def trainable_parameter_collection(self):

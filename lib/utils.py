@@ -51,7 +51,7 @@ def bilinear(x, W, y, input_size, seq_len, batch_size, num_outputs = 1, bias_x =
 	return blin
 
 
-def orthonormal_initializer(output_size, input_size, randn_init):
+def orthonormal_initializer(output_size, input_size, randn_init = False):
 	"""
 	adopted from Timothy Dozat https://github.com/tdozat/Parser/blob/master/lib/linalg.py
 	"""
