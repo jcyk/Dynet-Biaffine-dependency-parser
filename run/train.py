@@ -29,7 +29,7 @@ if __name__ == "__main__":
 		parser.load(os.path.join(args.baseline_path,'model'))
 		pc = parser.parameter_collection
 	elif args.model == 'SentParser':
-		parser = Parser(vocab, config.word_dims, config.tag_dims, config.dropout_emb, config.lstm_layers, config.lstm_hiddens, config.dropout_lstm_input, config.dropout_lstm_hidden, config.mlp_arc_size, config.mlp_rel_size, config.dropout_mlp, config.choice_size)
+		parser = Parser(vocab, config.word_dims, config.tag_dims, config.dropout_emb, config.lstm_layers, config.lstm_hiddens, config.dropout_lstm_input, config.dropout_lstm_hidden, config.mlp_arc_size, config.mlp_rel_size, config.dropout_mlp, config.choice_size, randn_init = True)
 		parser.initialize(os.path.join(args.baseline_path,'model'))
 		pc = parser.trainable_parameter_collection
 	
