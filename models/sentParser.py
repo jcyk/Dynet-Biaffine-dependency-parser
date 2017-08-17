@@ -212,9 +212,10 @@ class SentParser(object):
 	def initialize(self, baseline_params):
 		self._pc.populate(baseline_params)
 		for (f,b), (in_f, in_b) in zip(self.LSTM_builders, self.in_LSTM_builders):
-			for layer, in_layer in zip(f.get_parameters(), in_f.get_parameters()):
-				for param, in_param in zip(layer, in_layer):
-					in_param.set_value(param.as_array())
+			for layer_f, in_layer_f, layer_b, in_layer_b in zip(f.get_parameters(), in_f.get_parameters(),b.get_parameters(), in_b.get_parameters()):
+				for param_f, in_param_f, param_b, in_param_b in zip(layer_f, in_layer_f, layer_b, in_layer_b):
+					in_param_f.set_value(param_f.as_array())
+					in_param_b.set_value(param_b.as_array())
 
 	def save(self, save_path):
 		self._all_params.save(save_path)

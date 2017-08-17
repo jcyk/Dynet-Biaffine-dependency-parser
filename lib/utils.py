@@ -55,7 +55,6 @@ def orthonormal_initializer(output_size, input_size, randn_init):
 	"""
 	adopted from Timothy Dozat https://github.com/tdozat/Parser/blob/master/lib/linalg.py
 	"""
-	print (output_size, input_size)
 	if randn_init:
 		return np.random.randn(output_size, input_size).astype(np.float32)
 	I = np.eye(output_size)
@@ -75,6 +74,7 @@ def orthonormal_initializer(output_size, input_size, randn_init):
 				lr /= 2
 				break
 		success = True
+	print (output_size, input_size)
 	if success:
 		print('Orthogonal pretrainer loss: %.2e' % loss)
 	else:
