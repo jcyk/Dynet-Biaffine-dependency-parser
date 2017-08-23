@@ -86,6 +86,13 @@ class SentParser(object):
 		self._pc = pc
 		self._trainable_params = trainable_params
 
+	def set_trainable_flags(train_emb, train_in_lstm, train_out_lstm, train_classification, train_score):
+		self.train_emb = train_emb
+		self.train_in_lstm = train_in_lstm
+		self.train_out_lstm = train_out_lstm
+		self.train_classification = train_classification
+		self.train_score = train_score
+
 	@property
 	def all_parameter_collection(self):
 		return self._all_params
@@ -108,8 +115,8 @@ class SentParser(object):
 			mask_1D = dynet_flatten_numpy(mask)
 			mask_1D_tensor = dy.inputTensor(mask_1D, batched = True)
 		
-		word_embs = [dy.lookup_batch(self.word_embs, np.where( w<self._vocab.words_in_train, w, self._vocab.UNK)) + dy.lookup_batch(self.pret_word_embs, w, update = False) for w in word_inputs]
-		tag_embs = [dy.lookup_batch(self.tag_embs, pos) for pos in tag_inputs]
+		word_embs = [dy.lookup_batch(self.word_embs, np.where( w<self._vocab.words_in_train, w, self._vocab.UNK), update= self.train_emb) + dy.lookup_batch(self.pret_word_embs, w, update = False) for w in word_inputs]
+		tag_embs = [dy.lookup_batch(self.tag_embs, pos, update = self.train_emb) for pos in tag_inputs]
 		
 		if isTrain:
 			emb_masks = self.generate_emb_mask(seq_len, batch_size)
@@ -117,22 +124,23 @@ class SentParser(object):
 		else:
 			emb_inputs = [ dy.concatenate([w, pos]) for w, pos in zip(word_embs,tag_embs)]
 
-		top_recur = dy.concatenate_cols(biLSTM(self.LSTM_builders, emb_inputs, batch_size, self.dropout_lstm_input if isTrain else 0., self.dropout_lstm_hidden if isTrain else 0.))
-		in_top_recur = dy.concatenate_cols(biLSTM(self.in_LSTM_builders, emb_inputs, batch_size, self.dropout_lstm_input if isTrain else 0., self.dropout_lstm_hidden if isTrain else 0.))
+		top_recur = dy.concatenate_cols(biLSTM(self.LSTM_builders, emb_inputs, batch_size, self.dropout_lstm_input if isTrain else 0., self.dropout_lstm_hidden if isTrain else 0., update = self.train_out_lstm))
+		in_top_recur = dy.concatenate_cols(biLSTM(self.in_LSTM_builders, emb_inputs, batch_size, self.dropout_lstm_input if isTrain else 0., self.dropout_lstm_hidden if isTrain else 0., update = self.train_in_lstm))
 		
 		if isTrain:
 			top_recur = dy.dropout_dim(top_recur, 1, self.dropout_mlp)
 			in_top_recur = dy.dropout_dim(in_top_recur, 1, self.dropout_mlp)
 
-		W_choice, b_choice = dy.parameter(self.choice_W), dy.parameter(self.choice_b)
-		W_judge, b_judge = dy.parameter(self.judge_W), dy.parameter(self.judge_b)
-		choice_logits = leaky_relu(dy.affine_transform([b_choice, W_choice, dy.mean_dim(top_recur, 1)]))
+		W_choice, b_choice = dy.parameter(self.choice_W, update = self.train_classification), dy.parameter(self.choice_b, update = self.train_classification)
+		W_judge, b_judge = dy.parameter(self.judge_W, update = self.train_classification), dy.parameter(self.judge_b, update = self.train_classification)
+		to_judge = dy.flip_gradient(dy.mean_dim(top_recur, 1))
+		choice_logits = leaky_relu(dy.affine_transform([b_choice, W_choice, to_judge]))
 		in_decisions = dy.logistic(dy.affine_transform([b_judge, W_judge, choice_logits]))
 
 		top_recur = dy.cmult(1. - in_decisions, top_recur) + dy.cmult(in_decisions, in_top_recur)
 
-		W_dep, b_dep = dy.parameter(self.mlp_dep_W), dy.parameter(self.mlp_dep_b)
-		W_head, b_head = dy.parameter(self.mlp_head_W), dy.parameter(self.mlp_head_b)
+		W_dep, b_dep = dy.parameter(self.mlp_dep_W, update = self.train_score), dy.parameter(self.mlp_dep_b, update = self.train_score)
+		W_head, b_head = dy.parameter(self.mlp_head_W, update = self.train_score), dy.parameter(self.mlp_head_b, update = self.train_score)
 		dep, head = leaky_relu(dy.affine_transform([b_dep, W_dep, top_recur])),leaky_relu(dy.affine_transform([b_head, W_head, top_recur]))
 		if isTrain:
 			dep, head= dy.dropout_dim(dep, 1, self.dropout_mlp), dy.dropout_dim(head, 1, self.dropout_mlp)
@@ -140,7 +148,7 @@ class SentParser(object):
 		dep_arc, dep_rel = dep[:self.mlp_arc_size], dep[self.mlp_arc_size:]
 		head_arc, head_rel = head[:self.mlp_arc_size], head[self.mlp_arc_size:]
 
-		W_arc = dy.parameter(self.arc_W)
+		W_arc = dy.parameter(self.arc_W, update = self.train_score)
 		arc_logits = bilinear(dep_arc, W_arc, head_arc, self.mlp_arc_size, seq_len, batch_size, num_outputs= 1, bias_x = True, bias_y = False)
 		# (#head x #dep) x batch_size
 		
@@ -161,7 +169,7 @@ class SentParser(object):
 			arc_probs = np.transpose(np.reshape(dy.softmax(flat_arc_logits).npvalue(), (seq_len, seq_len, batch_size), 'F'))
 			# #batch_size x #dep x #head
 
-		W_rel = dy.parameter(self.rel_W)
+		W_rel = dy.parameter(self.rel_W, update = self.train_score)
 		rel_logits = bilinear(dep_rel, W_rel, head_rel, self.mlp_rel_size, seq_len, batch_size, num_outputs = self._vocab.rel_size, bias_x = True, bias_y = True)
 		# (#head x rel_size x #dep) x batch_size
 		

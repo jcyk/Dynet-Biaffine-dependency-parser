@@ -16,9 +16,9 @@ def orthonormal_VanillaLSTMBuilder(lstm_layers, input_dims, lstm_hiddens, pc, ra
 		params[2].set_value(b)
 	return builder
 
-def biLSTM(builders, inputs, batch_size = None, dropout_x = 0., dropout_h = 0.):
+def biLSTM(builders, inputs, batch_size = None, dropout_x = 0., dropout_h = 0., update = True):
 	for fb, bb in builders:
-		f, b = fb.initial_state(), bb.initial_state()
+		f, b = fb.initial_state(update = update), bb.initial_state(update = update)
 		fb.set_dropouts(dropout_x, dropout_h)
 		bb.set_dropouts(dropout_x, dropout_h)
 		if batch_size is not None:

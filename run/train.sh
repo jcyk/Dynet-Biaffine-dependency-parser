@@ -2,11 +2,22 @@ python train.py \
 --config_file ../configs/sent.cfg \
 --in_domain_file ../../sancl_data/gweb-emails-dev.conll \
 --model SentParser \
---domain_loss_scale 0.1 \
+--domain_loss_scale 0.01 \
 --dev_file ../../sancl_data/gweb-emails-test.conll \
 --test_file ../../sancl_data/gweb-emails-test.conll \
---save_dir ../ckpt/mixed-emails \
---load_dir ../ckpt/mixed-emails \
+--save_dir ../ckpt/mixed-emails-0.01 \
+--load_dir ../ckpt/mixed-emails-0.01 \
+--dynet-gpu
+
+python train.py \
+--config_file ../configs/sent.cfg \
+--in_domain_file ../../sancl_data/gweb-emails-dev.conll \
+--model SentParser \
+--domain_loss_scale 0. \
+--dev_file ../../sancl_data/gweb-emails-test.conll \
+--test_file ../../sancl_data/gweb-emails-test.conll \
+--save_dir ../ckpt/mixed-emails-0. \
+--load_dir ../ckpt/mixed-emails-0. \
 --dynet-gpu
 
 #python train.py \
