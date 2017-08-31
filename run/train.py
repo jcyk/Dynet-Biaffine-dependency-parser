@@ -31,7 +31,7 @@ if __name__ == "__main__":
 	elif args.model == 'SentParser':
 		parser = Parser(vocab, config.word_dims, config.tag_dims, config.dropout_emb, config.lstm_layers, config.lstm_hiddens, config.dropout_lstm_input, config.dropout_lstm_hidden, config.mlp_arc_size, config.mlp_rel_size, config.dropout_mlp, config.choice_size, randn_init = True)
 		parser.initialize(os.path.join(args.baseline_path,'model'))
-		parser.set_trainable_flags(True, True, True, True, True)
+		parser.set_trainable_flags(True, True, False, True, False)
 		pc = parser.all_parameter_collection
 	
 	data_loader = MixedDataLoader([DataLoader(config.train_file, config.num_buckets_train, vocab), DataLoader(args.in_domain_file, config.num_buckets_test, vocab)], [0.5, 0.5])

@@ -18,6 +18,7 @@ class Configurable(object):
 		if not for_test:
 			if not os.path.isdir(self.save_dir):
 				os.mkdir(self.save_dir)
+			config.set('Save', 'load_dir', self.save_dir)
 			config.write(open(self.config_file,'w'))
 		print 'Loaded config file sucessfully.'
 		for section in config.sections():

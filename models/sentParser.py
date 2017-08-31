@@ -86,7 +86,7 @@ class SentParser(object):
 		self._pc = pc
 		self._trainable_params = trainable_params
 
-	def set_trainable_flags(train_emb, train_in_lstm, train_out_lstm, train_classification, train_score):
+	def set_trainable_flags(self, train_emb, train_in_lstm, train_out_lstm, train_classification, train_score):
 		self.train_emb = train_emb
 		self.train_in_lstm = train_in_lstm
 		self.train_out_lstm = train_out_lstm
