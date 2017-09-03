@@ -1,12 +1,14 @@
-python train.py \
---config_file ../configs/sent.cfg \
---in_domain_file ../../sancl_data/gweb-emails-dev.conll \
---model SentParser \
---domain_loss_scale 0.01 \
+python baseline_train3000.py \
+--save_dir ../ckpt/sota \
+--dynet-gpu
+
+python baseline_train3000.py \
+--train_file ../../sancl_data/gweb-emails-dev.conll \
 --dev_file ../../sancl_data/gweb-emails-test.conll \
 --test_file ../../sancl_data/gweb-emails-test.conll \
---save_dir ../ckpt/mixed-emails-0.01 \
---load_dir ../ckpt/mixed-emails-0.01 \
+--save_dir ../ckpt/self-emails \
+--num_buckets_train 10 \
+--train_iters 30000 \
 --dynet-gpu
 
 python train.py \
@@ -17,8 +19,27 @@ python train.py \
 --dev_file ../../sancl_data/gweb-emails-test.conll \
 --test_file ../../sancl_data/gweb-emails-test.conll \
 --save_dir ../ckpt/mixed-emails-0. \
---load_dir ../ckpt/mixed-emails-0. \
 --dynet-gpu
+
+python train.py \
+--config_file ../configs/sent.cfg \
+--in_domain_file ../../sancl_data/gweb-emails-dev.conll \
+--model SentParser \
+--domain_loss_scale 0.01 \
+--dev_file ../../sancl_data/gweb-emails-test.conll \
+--test_file ../../sancl_data/gweb-emails-test.conll \
+--save_dir ../ckpt/mixed-emails-0.01 \
+--dynet-gpu
+
+#python train.py \
+#--config_file ../configs/sent.cfg \
+#--in_domain_file ../../sancl_data/gweb-emails-dev.conll \
+#--model SentParser \
+#--domain_loss_scale 0. \
+#--dev_file ../../sancl_data/gweb-emails-test.conll \
+#--test_file ../../sancl_data/gweb-emails-test.conll \
+#--save_dir ../ckpt/mixed-emails-0. \
+#--dynet-gpu
 
 #python train.py \
 #--config_file ../configs/sent.cfg \

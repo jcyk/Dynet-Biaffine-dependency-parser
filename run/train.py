@@ -15,7 +15,7 @@ if __name__ == "__main__":
 	argparser.add_argument('--config_file', default='../configs/sent.cfg')
 	argparser.add_argument('--in_domain_file', default='../../sancl_data/gweb-emails-dev.conll')
 	argparser.add_argument('--model', default='SentParser')
-	argparser.add_argument('--baseline_path', default='../../pretrained/compact95.62')
+	argparser.add_argument('--baseline_path', default='../ckpt/sota')
 	argparser.add_argument('--domain_loss_scale', type=float, default = 0.)
 
 	args, extra_args = argparser.parse_known_args()
@@ -69,4 +69,5 @@ if __name__ == "__main__":
 				LAS, UAS = test(parser, vocab, config.num_buckets_valid, config.test_batch_size, config.dev_file, os.path.join(config.save_dir, 'valid_tmp'))
 				history(LAS, UAS)
 				if global_step > config.save_after and UAS > best_UAS:
+					best_UAS = UAS
 					parser.save(config.save_model_path)
