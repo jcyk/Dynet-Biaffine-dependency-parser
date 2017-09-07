@@ -51,7 +51,7 @@ if __name__ == "__main__":
 			global_step += 1
 			if global_step % config.validate_every == 0:
 				print '\nTest on development set'
-				LAS, UAS = test(parser, vocab, config.num_buckets_valid, config.test_batch_size, config.dev_file, os.path.join(config.save_dir, 'valid_tmp'))
+				LAS, UAS = test(parser, vocab, config.num_buckets_valid, config.test_batch_size, config.dev_file, os.path.join(config.save_dir, 'valid_tmp'), notag=True)
 				history(LAS, UAS)
 				if global_step > config.save_after and UAS > best_UAS:
 					best_UAS = UAS

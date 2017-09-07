@@ -206,21 +206,6 @@ class MixedDataLoader(object):
 		for batch_tuple in zip(*generators):
 			yield batch_tuple
 
-
-	def __init__(self, input_file, n_bkts, vocab):
-		sents = []
-		sent = [[Vocab.ROOT, Vocab.ROOT, 0, Vocab.ROOT]]
-		with open(input_file) as f:
-			for line in f.readlines():
-				info = line.strip().split()
-				if info:
-					assert(len(info)==10), 'Illegal line: %s'%line
-					word, tag, head, rel = vocab.word2id(info[1].lower()), vocab.tag2id(info[3]), int(info[6]), vocab.rel2id(info[7])
-					sent.append([word, tag, head, rel])
-				else:
-					sents.append(sent)
-					sent = [[Vocab.ROOT, Vocab.ROOT, 0, Vocab.ROOT]]
-
 class RawDataLoader(object):
 	def __init__(self, input_file, n_bkts, vocab):
 		sents = []
