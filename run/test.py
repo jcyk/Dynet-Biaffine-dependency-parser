@@ -5,17 +5,20 @@ sys.path.append('..')
 import time, os, cPickle
 import dynet as dy
 import models
-from lib import Vocab, DataLoader
+from lib import Vocab, DataLoader, RawDataLoader
 from config import Configurable
 
-def test(parser, vocab, num_buckets_test, test_batch_size, test_file, output_file):
+def test(parser, vocab, num_buckets_test, test_batch_size, test_file, output_file, notag = False):
     data_loader = DataLoader(test_file, num_buckets_test, vocab)
     record = data_loader.idx_sequence
     results = [None] * len(record)
     idx = 0
     for words, tags, arcs, rels in data_loader.get_batches(batch_size=test_batch_size, shuffle=False):
         dy.renew_cg()
-        outputs = parser.run(words, tags, isTrain=False)
+        if notag:
+            outputs = parser.run(words, isTrain=False)
+        else:
+            outputs = parser.run(words, tags, isTrain=False)
         for output in outputs:
             sent_idx = record[idx]
             results[sent_idx] = output
@@ -44,7 +47,39 @@ def test(parser, vocab, num_buckets_test, test_batch_size, test_file, output_fil
     os.system('rm tmp score_tmp')
     return LAS, UAS
 
+def raw_test(parser, vocab, num_buckets_test, test_batch_size, test_file, output_file, notag = True):
+    data_loader = RawDataLoader(test_file, num_buckets_test, vocab)
+    record = data_loader.idx_sequence
+    results = [None] * len(record)
+    idx = 0
+    for words, tags in data_loader.get_batches(batch_size=test_batch_size, shuffle=False):
+        dy.renew_cg()
+        if notag:
+            outputs = parser.run(words, isTrain=False)
+        else:
+            outputs = parser.run(words, tags, isTrain=False)
+        for output in outputs:
+            sent_idx = record[idx]
+            results[sent_idx] = output
+            idx += 1
 
+    arcs = reduce(lambda x, y: x + y, [ list(result[0]) for result in results ])
+    rels = reduce(lambda x, y: x + y, [ list(result[1]) for result in results ])
+    output_info = ['_'] *10
+    with open(test_file) as f:
+        with open(output_file, 'w') as fo:
+            for line in f.readlines():
+                info = line.strip().split()
+                if info:
+                    assert len(info) == 2, 'Illegal line: %s' % line
+                    output_info[1], output_info[3] = info[0], info[1]
+                    info[6] = str(arcs[idx])
+                    info[7] = vocab.id2rel(rels[idx])
+                    fo.write('\t'.join(info) + '\n')
+                    idx += 1
+                else:
+                    fo.write('\n')
+                    
 import argparse
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser()
