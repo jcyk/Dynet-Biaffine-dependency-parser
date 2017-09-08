@@ -9,6 +9,9 @@ from lib import Vocab, DataLoader, RawDataLoader
 from config import Configurable
 
 def test(parser, vocab, num_buckets_test, test_batch_size, test_file, output_file, notag = False):
+    if not test_file.endswith('.conll'):
+        raw_test(parser, vocab, num_buckets_test, test_batch_size, test_file, output_file, notag)
+        return
     data_loader = DataLoader(test_file, num_buckets_test, vocab)
     record = data_loader.idx_sequence
     results = [None] * len(record)
@@ -65,6 +68,8 @@ def raw_test(parser, vocab, num_buckets_test, test_batch_size, test_file, output
 
     arcs = reduce(lambda x, y: x + y, [ list(result[0]) for result in results ])
     rels = reduce(lambda x, y: x + y, [ list(result[1]) for result in results ])
+    idx = 0
+    word_idx = 1
     output_info = ['_'] *10
     with open(test_file) as f:
         with open(output_file, 'w') as fo:
@@ -72,12 +77,15 @@ def raw_test(parser, vocab, num_buckets_test, test_batch_size, test_file, output
                 info = line.strip().split()
                 if info:
                     assert len(info) == 2, 'Illegal line: %s' % line
+                    output_info[0] = str(word_idx)
                     output_info[1], output_info[3] = info[0], info[1]
-                    info[6] = str(arcs[idx])
-                    info[7] = vocab.id2rel(rels[idx])
-                    fo.write('\t'.join(info) + '\n')
+                    output_info[6] = str(arcs[idx])
+                    output_info[7] = vocab.id2rel(rels[idx])
+                    fo.write('\t'.join(output_info) + '\n')
                     idx += 1
+                    word_idx +=1
                 else:
+                    word_idx = 1
                     fo.write('\n')
                     
 import argparse
@@ -86,6 +94,7 @@ if __name__ == '__main__':
     argparser.add_argument('--config_file', default='../configs/default.cfg')
     argparser.add_argument('--model', default='BaseParser')
     argparser.add_argument('--output_file', default='here')
+    argparser.add_argument('--notag', type = bool, default = False)
     args, extra_args = argparser.parse_known_args()
     config = Configurable(args.config_file, extra_args, for_test = True)
     Parser = getattr(models, args.model)
@@ -95,5 +104,7 @@ if __name__ == '__main__':
     elif args.model == 'SentParser':
         parser = Parser(vocab, config.word_dims, config.tag_dims, config.dropout_emb, config.lstm_layers, config.lstm_hiddens, config.dropout_lstm_input, config.dropout_lstm_hidden, config.mlp_arc_size, config.mlp_rel_size, config.dropout_mlp, config.choice_size, randn_init = True)
         parser.set_trainable_flags(True, True, True, True, True)
+    elif args.model == 'NotagParser':
+        parser = Parser(vocab, config.word_dims, config.dropout_emb, config.lstm_layers, config.lstm_hiddens, config.dropout_lstm_input, config.dropout_lstm_hidden, config.mlp_arc_size, config.mlp_rel_size, config.dropout_mlp, randn_init = True)
     parser.load(config.load_model_path)
-    test(parser, vocab, config.num_buckets_test, config.test_batch_size, config.test_file, args.output_file)
+    test(parser, vocab, config.num_buckets_test, config.test_batch_size, config.test_file, args.output_file, args.notag)

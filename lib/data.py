@@ -215,7 +215,7 @@ class RawDataLoader(object):
 				info = line.strip().split()
 				if info:
 					assert(len(info)==2), 'Illegal line: %s'%line
-					word, tag = vocab.word2id(info[1].lower()), vocab.tag2id(info[3])
+					word, tag = vocab.word2id(info[0].lower()), vocab.tag2id(info[1])
 					sent.append([word, tag])
 				else:
 					sents.append(sent)

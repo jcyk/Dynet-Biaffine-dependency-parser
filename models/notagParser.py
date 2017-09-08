@@ -16,6 +16,7 @@ class NotagParser(object):
 					   mlp_arc_size,
 					   mlp_rel_size,
 					   dropout_mlp,
+					   randn_init = False
 					   ):
 		pc = dy.ParameterCollection()
 
@@ -24,18 +25,18 @@ class NotagParser(object):
 		self.pret_word_embs = pc.lookup_parameters_from_numpy(vocab.get_pret_embs())
 		
 		self.LSTM_builders = []
-		f = orthonormal_VanillaLSTMBuilder(1, word_dims, lstm_hiddens, pc)
-		b = orthonormal_VanillaLSTMBuilder(1, word_dims, lstm_hiddens, pc)
+		f = orthonormal_VanillaLSTMBuilder(1, word_dims, lstm_hiddens, pc, randn_init)
+		b = orthonormal_VanillaLSTMBuilder(1, word_dims, lstm_hiddens, pc, randn_init)
 		self.LSTM_builders.append((f,b))
 		for i in xrange(lstm_layers-1):
-			f = orthonormal_VanillaLSTMBuilder(1, 2*lstm_hiddens, lstm_hiddens, pc)
-			b = orthonormal_VanillaLSTMBuilder(1, 2*lstm_hiddens, lstm_hiddens, pc)
+			f = orthonormal_VanillaLSTMBuilder(1, 2*lstm_hiddens, lstm_hiddens, pc, randn_init)
+			b = orthonormal_VanillaLSTMBuilder(1, 2*lstm_hiddens, lstm_hiddens, pc, randn_init)
 			self.LSTM_builders.append((f,b))
 		self.dropout_lstm_input = dropout_lstm_input
 		self.dropout_lstm_hidden = dropout_lstm_hidden
 
 		mlp_size = mlp_arc_size+mlp_rel_size
-		W = orthonormal_initializer(mlp_size, 2*lstm_hiddens)
+		W = orthonormal_initializer(mlp_size, 2*lstm_hiddens, randn_init)
 		self.mlp_dep_W = pc.parameters_from_numpy(W)
 		self.mlp_head_W = pc.parameters_from_numpy(W)
 		self.mlp_dep_b = pc.add_parameters((mlp_size,), init = dy.ConstInitializer(0.))
