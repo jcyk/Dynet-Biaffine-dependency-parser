@@ -29,6 +29,9 @@ class Configurable(object):
 	def pretrained_embeddings_file(self):
 		return self._config.get('Data','pretrained_embeddings_file')
 	@property
+	def aux_pretrained_embeddings_file(self):
+		return self._config.get('Data','aux_pretrained_embeddings_file')
+	@property
 	def data_dir(self):
 		return self._config.get('Data','data_dir')
 	@property
@@ -75,6 +78,9 @@ class Configurable(object):
 	@property
 	def tag_dims(self):
 		return self._config.getint('Network','tag_dims')
+	@property
+	def aux_word_dims(self):
+		return self._config.getint('Network','aux_word_dims')
 	@property
 	def dropout_emb(self):
 		return self._config.getfloat('Network','dropout_emb')
