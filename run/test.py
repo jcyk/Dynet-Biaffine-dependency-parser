@@ -27,8 +27,11 @@ def test(parser, vocab, num_buckets_test, test_batch_size, test_file, output_fil
             results[sent_idx] = output
             idx += 1
 
-    arcs = reduce(lambda x, y: x + y, [ list(result[0]) for result in results ])
-    rels = reduce(lambda x, y: x + y, [ list(result[1]) for result in results ])
+    arcs, rels = [], []
+    for result in results:
+        for x, y in zip(result[0], result[1]):
+            arcs.append(x)
+            rels.append(y)
     idx = 0
     with open(test_file) as f:
         with open(output_file, 'w') as fo:
@@ -55,6 +58,7 @@ def raw_test(parser, vocab, num_buckets_test, test_batch_size, test_file, output
     record = data_loader.idx_sequence
     results = [None] * len(record)
     idx = 0
+    print 'Start'
     for words, tags in data_loader.get_batches(batch_size=test_batch_size, shuffle=False):
         dy.renew_cg()
         if notag:
@@ -65,9 +69,12 @@ def raw_test(parser, vocab, num_buckets_test, test_batch_size, test_file, output
             sent_idx = record[idx]
             results[sent_idx] = output
             idx += 1
-
-    arcs = reduce(lambda x, y: x + y, [ list(result[0]) for result in results ])
-    rels = reduce(lambda x, y: x + y, [ list(result[1]) for result in results ])
+    print 'Finishing'
+    arcs, rels = [], []
+    for result in results:
+        for x, y in zip(result[0], result[1]):
+            arcs.append(x)
+            rels.append(y)
     idx = 0
     word_idx = 1
     output_info = ['_'] *10
@@ -89,6 +96,7 @@ def raw_test(parser, vocab, num_buckets_test, test_batch_size, test_file, output
                     fo.write('\n')
                     
 import argparse
+#python test.py --dynet-gpu --config_file ../ckpt/default/config.cfg --model NotagParser --output_file result2 --notag True --test_file ../../sancl_data/norm_data/unlabeled_emails_2
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser()
     argparser.add_argument('--config_file', default='../configs/default.cfg')

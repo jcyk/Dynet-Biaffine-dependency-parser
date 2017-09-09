@@ -259,7 +259,10 @@ class RawDataLoader(object):
 		if shuffle:
 			np.random.shuffle(batches)
 
+		finished_batches = 0
 		for bkt_idx, bkt_batch in batches:
+			print finished_batches,'/',len(batches)
+			finished_batches += 1
 			word_inputs = self._buckets[bkt_idx][:,bkt_batch, 0]
 			tag_inputs = self._buckets[bkt_idx][:,bkt_batch, 1]
 			yield word_inputs, tag_inputs
