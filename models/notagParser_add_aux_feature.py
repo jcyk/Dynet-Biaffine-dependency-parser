@@ -80,7 +80,7 @@ class NotagParser_auxfeat(object):
 		if isTrain:
 			top_recur = dy.dropout_dim(top_recur, 1, self.dropout_mlp)
 
-		aux_word_emb = dy.concatenate_cols([dy.lookup_batch(self.aux_pret_word_embs, w) for w in word_inputs])
+		aux_word_emb = dy.concatenate_cols([dy.lookup_batch(self.aux_pret_word_embs, w, update = False) for w in word_inputs])
 		top_repr = dy.concatenate([top_recur,aux_word_emb])
 
 		W_dep, b_dep = dy.parameter(self.mlp_dep_W), dy.parameter(self.mlp_dep_b)

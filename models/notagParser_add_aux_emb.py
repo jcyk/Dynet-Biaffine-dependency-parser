@@ -72,7 +72,7 @@ class NotagParser_auxemb(object):
 			mask_1D_tensor = dy.inputTensor(mask_1D, batched = True)
 		
 		word_embs = [dy.lookup_batch(self.word_embs, np.where( w<self._vocab.words_in_train, w, self._vocab.UNK)) + dy.lookup_batch(self.pret_word_embs, np.where( w<self._vocab.words_in_train_or_pret, w, self._vocab.UNK), update = False) for w in word_inputs]
-		aux_word_embs = [dy.lookup_batch(self.aux_pret_word_embs, w) for w in word_inputs]
+		aux_word_embs = [dy.lookup_batch(self.aux_pret_word_embs, w, update = False) for w in word_inputs]
 		
 		if isTrain:
 			word_embs= [ dy.dropout_dim(w, 0, self.dropout_emb) for w in word_embs]

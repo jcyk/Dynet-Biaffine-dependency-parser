@@ -149,7 +149,7 @@ class Vocab(object):
 	def _add_aux_pret_words(self, input_file):
 		print '#words known', self._words_in_train_or_pret_data
 		known_words = set(self._id2word)
-		with open(pret_file) as f:
+		with open(input_file) as f:
 			for line in f.readlines():
 				line = line.strip().split()
 				if line:
@@ -157,10 +157,10 @@ class Vocab(object):
 					if word not in known_words:
 						self._id2word.append(word)
 
-	def get_aux_pret_embs(self, input_file):
+	def get_aux_pret_embs(self):
 		assert (self._aux_pret_file is not None), "No auxiliary pretrained file provided."
 		embs = [[]] * len(self._id2word) 
-		with open(self._pret_file) as f:
+		with open(self._aux_pret_file) as f:
 			for line in f.readlines():
 				line = line.strip().split()
 				if line:
