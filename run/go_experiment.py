@@ -5,7 +5,7 @@ cmd = """
 python train_notag_aux.py \
 --config_file ../configs/aux.cfg \
 --aux_pretrained_embeddings_file ../../node2vec/%s \
---Model NotagParser_auxemb \
+--model NotagParser_auxemb \
 --save_dir ../ckpt/%s \
 --dynet-gpu
 """

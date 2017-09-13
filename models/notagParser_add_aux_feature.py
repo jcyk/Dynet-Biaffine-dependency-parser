@@ -38,7 +38,7 @@ class NotagParser_auxfeat(object):
 		self.dropout_lstm_hidden = dropout_lstm_hidden
 
 		mlp_size = mlp_arc_size+mlp_rel_size
-		W = orthonormal_initializer(mlp_size, 2*lstm_hiddens + aux_word_emb, randn_init)
+		W = orthonormal_initializer(mlp_size, 2*lstm_hiddens + aux_word_dims, randn_init)
 		self.mlp_dep_W = pc.parameters_from_numpy(W)
 		self.mlp_head_W = pc.parameters_from_numpy(W)
 		self.mlp_dep_b = pc.add_parameters((mlp_size,), init = dy.ConstInitializer(0.))

@@ -114,5 +114,9 @@ if __name__ == '__main__':
         parser.set_trainable_flags(True, True, True, True, True)
     elif args.model == 'NotagParser':
         parser = Parser(vocab, config.word_dims, config.dropout_emb, config.lstm_layers, config.lstm_hiddens, config.dropout_lstm_input, config.dropout_lstm_hidden, config.mlp_arc_size, config.mlp_rel_size, config.dropout_mlp, randn_init = True)
+    elif args.model == 'NotagParser_auxemb':
+        parser = Parser(vocab, config.word_dims, config.aux_word_dims, config.dropout_emb, config.lstm_layers, config.lstm_hiddens, config.dropout_lstm_input, config.dropout_lstm_hidden, config.mlp_arc_size, config.mlp_rel_size, config.dropout_mlp, randn_init = True)
+    elif args.model == 'NotagParser_auxfeat':
+        parser = Parser(vocab, config.word_dims, config.aux_word_dims, config.dropout_emb, config.lstm_layers, config.lstm_hiddens, config.dropout_lstm_input, config.dropout_lstm_hidden, config.mlp_arc_size, config.mlp_rel_size, config.dropout_mlp, randn_init = True)     
     parser.load(config.load_model_path)
     test(parser, vocab, config.num_buckets_test, config.test_batch_size, config.test_file, args.output_file, args.notag)
