@@ -31,7 +31,7 @@ def update_graph(graph, fname):
 			word, tag, head, rel = info[1].lower(), info[3], int(info[6]), info[7]
 			sent.append([word, tag, head, rel])
 		else:
-			graph.update([(sent[head][0], word) for word, tag, head, rel in sent])
+			graph.update([(sent[head][0], word) for word, tag, head, rel in sent[1:]])
 			sent = [[ROOT, ROOT, 0, ROOT]]
 
 def create_graph(file_list):
