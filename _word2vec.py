@@ -17,6 +17,7 @@ def create_graph(file_list):
 	of = open('corpus', 'w')
 	for fname in file_list:
 		write_sentences(of, fname)
+	of.close()
 
 
 class MySentences(object):
