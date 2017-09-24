@@ -77,7 +77,7 @@ class Vocab(object):
 
 	def get_pret_embs(self):
 		assert (self._pret_file is not None), "No pretrained file provided."
-		embs = [[]] * self._words_in_train_or_pret_data 
+		embs = [[]] * len(self._id2word)  #self._words_in_train_or_pret_data
 		with open(self._pret_file) as f:
 			for line in f.readlines():
 				line = line.strip().split()

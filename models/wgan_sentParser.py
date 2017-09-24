@@ -28,11 +28,11 @@ class WGANSentParser(object):
 		self._vocab = vocab
 		self.word_embs = pc.lookup_parameters_from_numpy(vocab.get_word_embs(word_dims))
 		self.pret_word_embs = pc.lookup_parameters_from_numpy(vocab.get_pret_embs())
-		self.tag_embs = pc.lookup_parameters_from_numpy(vocab.get_tag_embs(tag_dims))
-		
+		#self.tag_embs = pc.lookup_parameters_from_numpy(vocab.get_tag_embs(tag_dims))
+		self.dropout_emb = dropout_emb
 		self.LSTM_builders = []
-		f = orthonormal_VanillaLSTMBuilder(1, word_dims+tag_dims, lstm_hiddens, pc, randn_init)
-		b = orthonormal_VanillaLSTMBuilder(1, word_dims+tag_dims, lstm_hiddens, pc, randn_init)
+		f = orthonormal_VanillaLSTMBuilder(1, word_dims, lstm_hiddens, pc, randn_init)
+		b = orthonormal_VanillaLSTMBuilder(1, word_dims, lstm_hiddens, pc, randn_init)
 		self.LSTM_builders.append((f,b))
 		for i in xrange(lstm_layers-1):
 			f = orthonormal_VanillaLSTMBuilder(1, 2*lstm_hiddens, lstm_hiddens, pc, randn_init)
@@ -92,7 +92,7 @@ class WGANSentParser(object):
 	def trainable_parameter_collection(self):
 		return self._trainable_params
 
-	def run(self, word_inputs, tag_inputs, arc_targets = None, rel_targets = None, isTrain = True, critic_scale =0., dep_scale = 0.):
+	def run(self, word_inputs, tag_inputs, arc_targets = None, rel_targets = None, isTrain = True, critic_scale =0., dep_scale = 0.): 
 		# inputs, targets: seq_len x batch_size
 		def dynet_flatten_numpy(ndarray):
 			return np.reshape(ndarray, (-1,), 'F')
@@ -106,23 +106,28 @@ class WGANSentParser(object):
 			mask_1D = dynet_flatten_numpy(mask)
 			mask_1D_tensor = dy.inputTensor(mask_1D, batched = True)
 		
+		#word_embs = [dy.lookup_batch(self.word_embs, np.where( w<self._vocab.words_in_train, w, self._vocab.UNK), update= self.train_emb) + dy.lookup_batch(self.pret_word_embs, w, update = False) for w in word_inputs]
+		#tag_embs = [dy.lookup_batch(self.tag_embs, pos, update = self.train_emb) for pos in tag_inputs]
+		
+		#if isTrain:
+		#	emb_masks = self.generate_emb_mask(seq_len, batch_size)
+		#	emb_inputs = [ dy.concatenate([dy.cmult(w, wm), dy.cmult(pos,posm)]) for w, pos, (wm, posm) in zip(word_embs,tag_embs,emb_masks)]
+		#else:
+		#	emb_inputs = [ dy.concatenate([w, pos]) for w, pos in zip(word_embs,tag_embs)]
+
 		word_embs = [dy.lookup_batch(self.word_embs, np.where( w<self._vocab.words_in_train, w, self._vocab.UNK), update= self.train_emb) + dy.lookup_batch(self.pret_word_embs, w, update = False) for w in word_inputs]
-		tag_embs = [dy.lookup_batch(self.tag_embs, pos, update = self.train_emb) for pos in tag_inputs]
 		
 		if isTrain:
-			emb_masks = self.generate_emb_mask(seq_len, batch_size)
-			emb_inputs = [ dy.concatenate([dy.cmult(w, wm), dy.cmult(pos,posm)]) for w, pos, (wm, posm) in zip(word_embs,tag_embs,emb_masks)]
-		else:
-			emb_inputs = [ dy.concatenate([w, pos]) for w, pos in zip(word_embs,tag_embs)]
-
-		top_recur = dy.concatenate_cols(biLSTM(self.LSTM_builders, emb_inputs, batch_size, self.dropout_lstm_input if isTrain else 0., self.dropout_lstm_hidden if isTrain else 0., update = self.train_lstm))
+			word_embs= [ dy.dropout_dim(w, 0, self.dropout_emb) for w in word_embs]
+		
+		top_recur = dy.concatenate_cols(biLSTM(self.LSTM_builders, word_embs, batch_size, self.dropout_lstm_input if isTrain else 0., self.dropout_lstm_hidden if isTrain else 0., update = self.train_lstm))
 
 		if isTrain:
 			top_recur = dy.dropout_dim(top_recur, 1, self.dropout_mlp)
 
 		W_choice, b_choice = dy.parameter(self.choice_W, update = self.train_critic), dy.parameter(self.choice_b, update = self.train_critic)
 		W_judge, b_judge = dy.parameter(self.judge_W, update = self.train_critic), dy.parameter(self.judge_b, update = self.train_critic)
-		to_judge = dy.flip_gradient(dy.mean_dim(top_recur, 1))
+		to_judge = dy.mean_dim(top_recur, 1)
 		choice_logits = leaky_relu(dy.affine_transform([b_choice, W_choice, to_judge]))
 		in_decisions = dy.affine_transform([b_judge, W_judge, choice_logits])
 
@@ -180,7 +185,7 @@ class WGANSentParser(object):
 	
 		if isTrain or arc_targets is not None:
 			critic_loss = dy.sum_batches(in_decisions) / batch_size
-			loss = (dep_scale * (arc_loss + rel_loss) if dep_scale != 0. else 0. ) + ( critic_scale * if critic_scale != 0. else 0.)
+			loss = (dep_scale * (arc_loss + rel_loss) if dep_scale != 0. else 0. ) + ( critic_scale * critic_loss  if critic_scale != 0. else 0.)
 			correct = rel_correct * dynet_flatten_numpy(arc_correct)
 			overall_accuracy = np.sum(correct) / num_tokens 
 		
