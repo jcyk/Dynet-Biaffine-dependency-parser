@@ -23,6 +23,7 @@ import sys, random
 
 ROOT = '<root>'
 depth_cnt = Counter()
+length_cnt = Counter()
 
 def update_graph(graph, fname):
 	nsents = 0
@@ -34,13 +35,14 @@ def update_graph(graph, fname):
 			word, tag, head, rel = info[1].lower(), info[3], int(info[6]), info[7]
 			sent.append([word, tag, head, rel])
 		else:
-			for word, tag, head, rel in sent[1:]:
+			for idx, (word, tag, head, rel) in enumerate(sent[1:],1):
 				depth = 1
 				h = head
 				while h!=0:
 					h = sent[h][2]
 					depth +=1
-			depth_cnt[depth] +=1
+				depth_cnt[depth] +=1
+				length_cnt[abs(idx-head)] +=1
 			nsents += 1
 			graph.update([(sent[head][0], word) for word, tag, head, rel in sent[1:]])
 			sent = [[ROOT, ROOT, 0, ROOT]]
@@ -52,6 +54,7 @@ def create_graph(file_list):
 	for fname in file_list:
 		nsents += update_graph(graph, fname)
 	print 'depths of dependencies', depth_cnt
+	print 'lengths of dependencies', length_cnt
 	print 'number of sentences', nsents
 	return nsents, graph
 
