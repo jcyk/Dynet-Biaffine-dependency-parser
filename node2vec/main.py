@@ -22,7 +22,10 @@ from collections import Counter
 import sys, random
 
 ROOT = '<root>'
+depth_cnt = Counter()
+
 def update_graph(graph, fname):
+	nsents = 0
 	sent = [[ROOT, ROOT, 0, ROOT]]
 	for line in open(fname).readlines():
 		info = line.strip().split()
@@ -31,15 +34,26 @@ def update_graph(graph, fname):
 			word, tag, head, rel = info[1].lower(), info[3], int(info[6]), info[7]
 			sent.append([word, tag, head, rel])
 		else:
+			for word, tag, head, rel in sent[1:]:
+				depth = 1
+				h = head
+				while h!=0:
+					h = sent[h][2]
+					depth +=1
+			depth_cnt[depth] +=1
+			nsents += 1
 			graph.update([(sent[head][0], word) for word, tag, head, rel in sent[1:]])
 			sent = [[ROOT, ROOT, 0, ROOT]]
+	return nsents
 
 def create_graph(file_list):
 	graph = Counter()
+	nsents = 0
 	for fname in file_list:
-		update_graph(graph, fname)
-
-	return graph
+		nsents += update_graph(graph, fname)
+	print 'depths of dependencies', depth_cnt
+	print 'number of sentences', nsents
+	return nsents, graph
 
 def parse_args():
 	'''
@@ -50,19 +64,19 @@ def parse_args():
 	parser.add_argument('--input', nargs='+', default='graph/karate.edgelist',
 	                    help='Input graph path')
 
-	parser.add_argument('--output', nargs='?', default='emb/karate.emb',
+	parser.add_argument('--output', nargs='?', default='emb',
 	                    help='Embeddings path')
 
-	parser.add_argument('--dimensions', type=int, default=128,
+	parser.add_argument('--dimensions', type=int, default=100,
 	                    help='Number of dimensions. Default is 128.')
 
-	parser.add_argument('--walk-length', type=int, default=80,
+	parser.add_argument('--walk-length', type=int, default=20,
 	                    help='Length of walk per source. Default is 80.')
 
 	parser.add_argument('--num-walks', type=int, default=10,
 	                    help='Number of walks per source. Default is 10.')
 
-	parser.add_argument('--window-size', type=int, default=10,
+	parser.add_argument('--window-size', type=int, default=5,
                     	help='Context size for optimization. Default is 10.')
 
 	parser.add_argument('--iter', default=1, type=int,
@@ -93,7 +107,7 @@ def read_graph():
 	'''
 	Reads the input network in networkx.
 	'''
-	graph = create_graph(args.input)
+	nsents, graph = create_graph(args.input)
 	#for edge in graph:
 	#	print edge[0], edge[1], graph[edge]
 	
@@ -113,7 +127,7 @@ def read_graph():
 	if not args.directed:
 		G = G.to_undirected()
 
-	return G
+	return nsents, G
 
 def learn_embeddings(walks):
 	'''
@@ -132,24 +146,25 @@ class Simulate_walks(object):
 		self.walk_length = walk_length
 	
 	def __iter__(self):
-		nodes = list(self.G.G.nodes())
+		#nodes = list(self.G.G.nodes())
+		node = '<root>'
 		for walk_iter in range(self.num_walks):
-			print str(walk_iter+1), '/', str(self.num_walks)
-			random.shuffle(nodes)
-			for node in nodes:
-				yield self.G.node2vec_walk(walk_length=self.walk_length, start_node=node)
+			yield self.G.node2vec_walk(walk_length=self.walk_length, start_node=node)
+			#random.shuffle(nodes)
+			#for node in nodes:
+			#	yield self.G.node2vec_walk(walk_length=self.walk_length, start_node=node)
 
 def main(args):
 	'''
 	Pipeline for representational learning for all nodes in a graph.
 	'''
-	nx_G = read_graph()
+	nsents, nx_G = read_graph()
 	G = node2vec.Graph(nx_G, args.directed, args.p, args.q)
 	print G.G.number_of_nodes(), G.G.number_of_edges()
 	G.preprocess_transition_probs()
 
 	print 'Graph preprocessed'
-	walks = Simulate_walks(G, args.num_walks, args.walk_length)
+	walks = Simulate_walks(G, args.num_walks * nsents, args.walk_length)
 	learn_embeddings(walks)
 
 

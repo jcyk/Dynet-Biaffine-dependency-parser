@@ -77,6 +77,7 @@ class WGANSentParser(object):
 		self._all_params = all_params
 		self._pc = pc
 		self._trainable_params = trainable_params
+		self.set_trainable_flags(False, False, False, False)
 
 	def set_trainable_flags(self, train_emb, train_lstm, train_critic, train_score):
 		self.train_emb = train_emb
@@ -92,7 +93,7 @@ class WGANSentParser(object):
 	def trainable_parameter_collection(self):
 		return self._trainable_params
 
-	def run(self, word_inputs, tag_inputs, arc_targets = None, rel_targets = None, isTrain = True, critic_scale =0., dep_scale = 0.): 
+	def run(self, word_inputs, tag_inputs = None, arc_targets = None, rel_targets = None, isTrain = True, critic_scale =0., dep_scale = 0.): 
 		# inputs, targets: seq_len x batch_size
 		def dynet_flatten_numpy(ndarray):
 			return np.reshape(ndarray, (-1,), 'F')
