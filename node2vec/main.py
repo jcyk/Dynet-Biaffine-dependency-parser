@@ -119,7 +119,8 @@ def read_graph():
 	if args.weighted:
 		for edge in graph:
 			if graph[edge] >2:
-				G.add_edge(edge[0], edge[1],{'weight':graph[edge]})
+				G.add_edge(edge[0], edge[1])
+				G[edge[0]][edge[1]]['weight'] = graph[edge]
 	else:
 		for edge in graph:
 			if graph[edge] >2:
