@@ -17,7 +17,7 @@ import argparse
 import numpy as np
 import networkx as nx
 import node2vec
-from word2vec import Word2Vec
+import gensim
 from collections import Counter
 import sys, random
 
@@ -137,7 +137,7 @@ def learn_embeddings(walks):
 	'''
 	Learn embeddings by optimizing the Skipgram objective using SGD.
 	'''
-	model = Word2Vec(walks, size=args.dimensions, window=args.window_size, min_count=0, sg=1, workers=args.workers, iter=args.iter)
+	model = gensim.models.Word2Vec(walks, size=args.dimensions, window=args.window_size, min_count=0, sg=1, workers=args.workers, iter=args.iter)
 	model.wv.save_word2vec_format(args.output)
 
 class Simulate_walks(object):

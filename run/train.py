@@ -34,7 +34,7 @@ if __name__ == "__main__":
 		parser.set_trainable_flags(True, True, False, True, False)
 		pc = parser.all_parameter_collection
 	
-	data_loader = MixedDataLoader([DataLoader(config.train_file, config.num_buckets_train, vocab), DataLoader(args.in_domain_file, config.num_buckets_test, vocab)], [0.5, 0.5])
+	data_loader = MixedDataLoader([config.train_file, config.in_domain_file], [0.5, 0.5] config.num_buckets_train, vocab)
 	trainer = dy.AdamTrainer(pc, config.learning_rate , config.beta_1, config.beta_2, config.epsilon)
 	
 	global_step = 0

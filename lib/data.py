@@ -94,8 +94,8 @@ class Vocab(object):
 
 	def get_word_embs(self, word_dims):
 		if self._pret_file is not None:
-			return np.random.randn(self.words_in_train, word_dims).astype(np.float32)
-		return np.zeros((self.words_in_train, word_dims), dtype=np.float32)
+			return np.zeros((self.words_in_train, word_dims), dtype=np.float32)
+		return np.random.randn(self.words_in_train, word_dims).astype(np.float32)
 
 	def get_tag_embs(self, tag_dims):
 		return np.random.randn(self.tag_size, tag_dims).astype(np.float32)
@@ -183,7 +183,7 @@ class Vocab(object):
 
 
 class DataLoader(object):
-	def __init__(self, input_file, n_bkts, vocab):
+	def __init__(self, input_file, n_bkts, vocab, bucket_sizes = None):
 		sents = []
 		sent = [[Vocab.ROOT, Vocab.ROOT, 0, Vocab.ROOT]]
 		with open(input_file) as f:
@@ -200,7 +200,10 @@ class DataLoader(object):
 		len_counter = Counter()
 		for sent in sents:
 			len_counter[len(sent)] += 1	
-		self._bucket_sizes = KMeans(n_bkts, len_counter).splits
+		if self._bucket_sizes is None:
+			self._bucket_sizes = KMeans(n_bkts, len_counter).splits
+		else:
+			self._bucket_sizes = bucket_sizes
 		self._buckets = [[] for i in xrange(n_bkts)]
 		len2bkt = {}
 		prev_size = -1
@@ -244,10 +247,13 @@ class DataLoader(object):
 			yield word_inputs, tag_inputs, arc_targets, rel_targets
 
 class MixedDataLoader(object):
-	def __init__(self, loaders, ratios):
-		assert isinstance(loaders, list)
+	def __init__(self, files, ratios, n_bkts, vocab):
+		assert isinstance(files, list)
 		assert isinstance(ratios, list)
-		self._loaders = loaders
+		test = Dataloader(files[0], n_bkts, vocab)
+		bucket_sizes = test._bucket_sizes
+		del test
+		self._loaders = [ Dataloader(_file, n_bkts, vocab, bucket_sizes = bucket_sizes) for _file in files]
 		self._ratios = ratios
 
 	def get_batches(self, batch_size):

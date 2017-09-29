@@ -29,9 +29,8 @@ if __name__ == "__main__":
 		parser = Parser(vocab, config.word_dims, config.tag_dims, config.dropout_emb, config.lstm_layers, config.lstm_hiddens, config.dropout_lstm_input, config.dropout_lstm_hidden, config.mlp_arc_size, config.mlp_rel_size, config.dropout_mlp, config.choice_size, randn_init = True)
 		parser.initialize(os.path.join(args.baseline_path,'model'))
 		pc = parser.all_parameter_collection
-
 	
-	data_loader = MixedDataLoader([DataLoader(config.train_file, config.num_buckets_train, vocab), DataLoader(args.in_domain_file, config.num_buckets_test, vocab)], [0.5, 0.5])
+	data_loader = MixedDataLoader([config.train_file, config.in_domain_file], [0.5, 0.5] config.num_buckets_train, vocab)
 	trainer = dy.AdamTrainer(pc, config.learning_rate , config.beta_1, config.beta_2, config.epsilon)
 	
 	global_step = 0
