@@ -13,7 +13,7 @@ import argparse
 if __name__ == "__main__":
 	np.random.seed(666)
 	argparser = argparse.ArgumentParser()
-	argparser.add_argument('--config_file', default='../configs/default.cfg')
+	argparser.add_argument('--config_file', default='../configs/norm.cfg')
 	#argparser.add_argument('--in_domain_file', default='../../sancl_data/gweb-emails-dev.conll')
 	argparser.add_argument('--model', default='NotagParser')
 	args, extra_args = argparser.parse_known_args()

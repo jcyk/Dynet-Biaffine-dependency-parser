@@ -200,7 +200,7 @@ class DataLoader(object):
 		len_counter = Counter()
 		for sent in sents:
 			len_counter[len(sent)] += 1	
-		if self._bucket_sizes is None:
+		if bucket_sizes is None:
 			self._bucket_sizes = KMeans(n_bkts, len_counter).splits
 		else:
 			self._bucket_sizes = bucket_sizes
@@ -250,10 +250,10 @@ class MixedDataLoader(object):
 	def __init__(self, files, ratios, n_bkts, vocab):
 		assert isinstance(files, list)
 		assert isinstance(ratios, list)
-		test = Dataloader(files[0], n_bkts, vocab)
+		test = DataLoader(files[0], n_bkts, vocab)
 		bucket_sizes = test._bucket_sizes
 		del test
-		self._loaders = [ Dataloader(_file, n_bkts, vocab, bucket_sizes = bucket_sizes) for _file in files]
+		self._loaders = [ DataLoader(_file, n_bkts, vocab, bucket_sizes = bucket_sizes) for _file in files]
 		self._ratios = ratios
 
 	def get_batches(self, batch_size):
