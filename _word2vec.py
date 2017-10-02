@@ -30,6 +30,6 @@ class MySentences(object):
 if __name__ == "__main__":
 	create_graph(sys.argv[1:])
 	sents = MySentences('corpus')
-	model = gensim.models.Word2Vec(sents, size=100, window=5, min_count=2, workers = 4, iter=10)
+	model = gensim.models.Word2Vec(sents, size=100, window=5, min_count=3, workers = 4, iter=50)
 	model.wv.save_word2vec_format('word2vec_emb')
 

@@ -1,10 +1,5 @@
-python test.py \
---config_file ../ckpt/ \
---model NotagParser_auxemb \
---notag True
---test_file \
---dynet-gpu 
-#python test.py \
-#--config_file ../ckpt/mixed-emails/config.cfg \
-#--model SentParser \
-#--dynet-gpu
+python train_notag.py --dynet-gpu --dynet-seed --pretrained_embeddings_file ../../word2vec_emb --save_dir ../ckpt/word2vec
+
+python train_notag.py --dynet-gpu --dynet-seed --pretrained_embeddings_file ../../dep2vec_typed --save_dir ../ckpt/dep2vec_typed
+
+python train_notag.py --dynet-gpu --dynet-seed --pretrained_embeddings_file ../../dep2vec_untyped --save_dir ../ckpt/dep2vec_untyped

@@ -12,7 +12,9 @@ def update_graph(graph, fname):
 			sent.append([word, tag, head, rel])
 		else:
 			for word, tag, head, rel in sent[1:]:
-				if rel == 'prep' and head !=0:
+				if rel == 'prep':
+					continue
+				if rel == 'pobj' and head !=0:
 					h = sent[sent[head][2]][0]
 					rel = "%s:%s"%(sent[head][-1], sent[head][0])
 				else:
@@ -20,33 +22,45 @@ def update_graph(graph, fname):
 				graph.append((h, word, rel))
 			sent = [[ROOT, ROOT, 0, ROOT]]
 
-def create_graph(file_list):
+def create_graph(file_list, typed):
 	graph = []
 	for fname in file_list:
 		update_graph(graph, fname)
 	edge_cnt = Counter()
 	edge_cnt.update(graph)
 
-	edge_file = open('dep.contexts', 'w')
+	edge_file = open('dep.contexts_', 'w')
 	for edge in graph:
-		if edge_cnt[edge] <= 2:
+		if edge_cnt[edge] < 5:
 			continue
-		out = "%s %s_%s\n%s %sI_%s\n"%(edge[0],edge[2],edge[1], edge[1], edge[2],edge[0])
+		if typed:
+			out = "%s %s_%s\n%s %sI_%s\n"%(edge[0],edge[2],edge[1], edge[1], edge[2],edge[0])
+		else:
+			out = "%s _%s\n%s I_%s\n"%(edge[0],edge[1], edge[1],edge[0])
 		edge_file.write(out)
 	edge_file.close()
 
 	data = [line.strip().split() for line in  open('dep.contexts').readlines()]
-	wv = set(x[0] for x in data)
-	cv = set(x[1] for x in data)
+	wv_cnt = Counter()
+	cv_cnt = Counter()
 
-	with open('wv', 'w') as wv_file:
-		for x in wv:
-			wv_file.write(x+'\n')
+	wv = wv_cnt.update([x[0] for x in data])
+	cv = cv_cnt.update((x[1] for x in data))
 
-	with open('cv', 'w') as cv_file:
-		for x in cv:
-			cv_file.write(x+'\n')
+
+	with open('wv_', 'w') as wv_file:
+		wv_file.write('</s> 0\n')
+		for x in wv_cnt.most_common():
+			print x
+			if x[1] >= 6:
+				wv_file.write('%s %d\n'%(x[0],x[1]))
+
+	with open('cv_', 'w') as cv_file:
+		cv_file.write('</s> 0\n')
+		for x in cv_cnt.most_common():
+			if x[1] >= 6:
+				cv_file.write('%s %d\n'%(x[0],x[1]))
 
 
 if __name__ == "__main__":
-	create_graph(sys.argv[1:])
+	create_graph(sys.argv[1:], typed  = False)
