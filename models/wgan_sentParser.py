@@ -107,15 +107,6 @@ class WGANSentParser(object):
 			mask_1D = dynet_flatten_numpy(mask)
 			mask_1D_tensor = dy.inputTensor(mask_1D, batched = True)
 		
-		#word_embs = [dy.lookup_batch(self.word_embs, np.where( w<self._vocab.words_in_train, w, self._vocab.UNK), update= self.train_emb) + dy.lookup_batch(self.pret_word_embs, w, update = False) for w in word_inputs]
-		#tag_embs = [dy.lookup_batch(self.tag_embs, pos, update = self.train_emb) for pos in tag_inputs]
-		
-		#if isTrain:
-		#	emb_masks = self.generate_emb_mask(seq_len, batch_size)
-		#	emb_inputs = [ dy.concatenate([dy.cmult(w, wm), dy.cmult(pos,posm)]) for w, pos, (wm, posm) in zip(word_embs,tag_embs,emb_masks)]
-		#else:
-		#	emb_inputs = [ dy.concatenate([w, pos]) for w, pos in zip(word_embs,tag_embs)]
-
 		word_embs = [dy.lookup_batch(self.word_embs, np.where( w<self._vocab.words_in_train, w, self._vocab.UNK), update= self.train_emb) + dy.lookup_batch(self.pret_word_embs, w, update = False) for w in word_inputs]
 		
 		if isTrain:
@@ -123,14 +114,13 @@ class WGANSentParser(object):
 		
 		top_recur = dy.concatenate_cols(biLSTM(self.LSTM_builders, word_embs, batch_size, self.dropout_lstm_input if isTrain else 0., self.dropout_lstm_hidden if isTrain else 0., update = self.train_lstm))
 
-		if isTrain:
-			top_recur = dy.dropout_dim(top_recur, 1, self.dropout_mlp)
-
 		W_choice, b_choice = dy.parameter(self.choice_W, update = self.train_critic), dy.parameter(self.choice_b, update = self.train_critic)
 		W_judge, b_judge = dy.parameter(self.judge_W, update = self.train_critic), dy.parameter(self.judge_b, update = self.train_critic)
-		to_judge = dy.mean_dim(top_recur, 1)
-		choice_logits = leaky_relu(dy.affine_transform([b_choice, W_choice, to_judge]))
+		choice_logits = dy.mean_dim(leaky_relu(dy.affine_transform([b_choice, W_choice, top_recur])),1)
 		in_decisions = dy.affine_transform([b_judge, W_judge, choice_logits])
+		
+		if isTrain:
+			top_recur = dy.dropout_dim(top_recur, 1, self.dropout_mlp)
 
 		W_dep, b_dep = dy.parameter(self.mlp_dep_W, update = self.train_score), dy.parameter(self.mlp_dep_b, update = self.train_score)
 		W_head, b_head = dy.parameter(self.mlp_head_W, update = self.train_score), dy.parameter(self.mlp_head_b, update = self.train_score)

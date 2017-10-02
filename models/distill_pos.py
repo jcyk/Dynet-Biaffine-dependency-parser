@@ -5,7 +5,7 @@ import numpy as np
 
 from lib import biLSTM, leaky_relu, bilinear, orthonormal_initializer, arc_argmax, rel_argmax, orthonormal_VanillaLSTMBuilder
 
-class WGANSentParser(object):
+class DistilltagParser(object):
 	def __init__(self, vocab,
 					   word_dims,
 					   tag_dims,
@@ -28,7 +28,7 @@ class WGANSentParser(object):
 		self._vocab = vocab
 		self.word_embs = pc.lookup_parameters_from_numpy(vocab.get_word_embs(word_dims))
 		self.pret_word_embs = pc.lookup_parameters_from_numpy(vocab.get_pret_embs())
-		#self.tag_embs = pc.lookup_parameters_from_numpy(vocab.get_tag_embs(tag_dims))
+		self.tag_embs = pc.lookup_parameters_from_numpy(vocab.get_tag_embs(tag_dims))
 		self.dropout_emb = dropout_emb
 		self.LSTM_builders = []
 		f = orthonormal_VanillaLSTMBuilder(1, word_dims, lstm_hiddens, pc, randn_init)
@@ -73,6 +73,15 @@ class WGANSentParser(object):
 		self.judge_W = trainable_params.add_parameters((1, choice_size), init = dy.ConstInitializer(0.))
 		self.judge_b = trainable_params.add_parameters((1,), init = dy.ConstInitializer(0.))
 
+		self.in_LSTM_builders = []
+		f = orthonormal_VanillaLSTMBuilder(1, word_dims, lstm_hiddens, trainable_params, randn_init)
+		b = orthonormal_VanillaLSTMBuilder(1, word_dims, lstm_hiddens, trainable_params, randn_init)
+		self.in_LSTM_builders.append((f,b))
+		for i in xrange(lstm_layers-1):
+			f = orthonormal_VanillaLSTMBuilder(1, 2*lstm_hiddens, lstm_hiddens, trainable_params, randn_init)
+			b = orthonormal_VanillaLSTMBuilder(1, 2*lstm_hiddens, lstm_hiddens, trainable_params, randn_init)
+			self.in_LSTM_builders.append((f,b))
+
 		self._critic_params = [self.choice_W, self.choice_b, self.judge_W, self.judge_b]
 		self._all_params = all_params
 		self._pc = pc
@@ -107,30 +116,32 @@ class WGANSentParser(object):
 			mask_1D = dynet_flatten_numpy(mask)
 			mask_1D_tensor = dy.inputTensor(mask_1D, batched = True)
 		
-		#word_embs = [dy.lookup_batch(self.word_embs, np.where( w<self._vocab.words_in_train, w, self._vocab.UNK), update= self.train_emb) + dy.lookup_batch(self.pret_word_embs, w, update = False) for w in word_inputs]
-		#tag_embs = [dy.lookup_batch(self.tag_embs, pos, update = self.train_emb) for pos in tag_inputs]
-		
-		#if isTrain:
-		#	emb_masks = self.generate_emb_mask(seq_len, batch_size)
-		#	emb_inputs = [ dy.concatenate([dy.cmult(w, wm), dy.cmult(pos,posm)]) for w, pos, (wm, posm) in zip(word_embs,tag_embs,emb_masks)]
-		#else:
-		#	emb_inputs = [ dy.concatenate([w, pos]) for w, pos in zip(word_embs,tag_embs)]
-
 		word_embs = [dy.lookup_batch(self.word_embs, np.where( w<self._vocab.words_in_train, w, self._vocab.UNK), update= self.train_emb) + dy.lookup_batch(self.pret_word_embs, w, update = False) for w in word_inputs]
+		tag_embs = [dy.lookup_batch(self.tag_embs, pos, update = self.train_emb) for pos in tag_inputs]
 		
 		if isTrain:
-			word_embs= [ dy.dropout_dim(w, 0, self.dropout_emb) for w in word_embs]
-		
-		top_recur = dy.concatenate_cols(biLSTM(self.LSTM_builders, word_embs, batch_size, self.dropout_lstm_input if isTrain else 0., self.dropout_lstm_hidden if isTrain else 0., update = self.train_lstm))
+			emb_masks = self.generate_emb_mask(seq_len, batch_size)
+			emb_inputs_tag = [ dy.concatenate([dy.cmult(w, wm), dy.cmult(pos,posm)]) for w, pos, (wm, posm) in zip(word_embs,tag_embs,emb_masks)]
+			top_recur_tag = dy.concatenate_cols(biLSTM(self.LSTM_builders, emb_inputs_tag, batch_size, self.dropout_lstm_input, self.dropout_lstm_hidden, update = False))
+			
+			emb_inputs = [ dy.cmult(w, wm+posm/2.) for w, (wm,posm) in zip(word_embs, emb_masks)]
+			top_recur = dy.concatenate_cols(biLSTM(self.in_LSTM_builders, emb_inputs, batch_size, self.dropout_lstm_input , self.dropout_lstm_hidden, update = self.train_lstm))
+			
+			W_choice, b_choice = dy.parameter(self.choice_W, update = self.train_critic), dy.parameter(self.choice_b, update = self.train_critic)
+			W_judge, b_judge = dy.parameter(self.judge_W, update = self.train_critic), dy.parameter(self.judge_b, update = self.train_critic)
+			
+			if self.train_critic:
+				choice_logits = - dy.mean_dim(leaky_relu(dy.affine_transform([b_choice, W_choice, top_recur_tag])), 1)
+			else:
+				choice_logits =  dy.mean_dim(leaky_relu(dy.affine_transform([b_choice, W_choice, top_recur_tag])), 1) - dy.mean_dim(leaky_relu(dy.affine_transform([b_choice, W_choice, top_recur])), 1)
+			
+			in_decisions = dy.affine_transform([b_judge, W_judge, choice_logits])
+		else:
+			emb_inputs = [ dy.cmult(w, 1.5) for w in word_embs]
+			top_recur = dy.concatenate_cols(biLSTM(self.in_LSTM_builders, emb_inputs, batch_size, 0., 0., update = False))
 
 		if isTrain:
 			top_recur = dy.dropout_dim(top_recur, 1, self.dropout_mlp)
-
-		W_choice, b_choice = dy.parameter(self.choice_W, update = self.train_critic), dy.parameter(self.choice_b, update = self.train_critic)
-		W_judge, b_judge = dy.parameter(self.judge_W, update = self.train_critic), dy.parameter(self.judge_b, update = self.train_critic)
-		#to_judge = dy.mean_dim(top_recur, 1)
-		choice_logits = dy.mean_dim(leaky_relu(dy.affine_transform([b_choice, W_choice, to_judge])))
-		in_decisions = dy.affine_transform([b_judge, W_judge, choice_logits])
 
 		W_dep, b_dep = dy.parameter(self.mlp_dep_W, update = self.train_score), dy.parameter(self.mlp_dep_b, update = self.train_score)
 		W_head, b_head = dy.parameter(self.mlp_head_W, update = self.train_score), dy.parameter(self.mlp_head_b, update = self.train_score)

@@ -13,8 +13,7 @@ if __name__ == "__main__":
 	np.random.seed(666)
 	argparser = argparse.ArgumentParser()
 	argparser.add_argument('--config_file', default='../configs/sent.cfg')
-	argparser.add_argument('--in_domain_file', default='../../node2vec/result0123')
-	argparser.add_argument('--model', default='WGANSentParser')
+	argparser.add_argument('--model', default='DistilltagParser')
 	argparser.add_argument('--baseline_path', default='../ckpt/sota')
 	argparser.add_argument('--critic_scale', type=float, default = 0.1)
 	argparser.add_argument('--ncritic', type=int, default = 5)
@@ -25,12 +24,12 @@ if __name__ == "__main__":
 
 	vocab = cPickle.load(open(os.path.join(args.baseline_path,'vocab')))
 	cPickle.dump(vocab, open(config.save_vocab_path, 'w'))
-	if args.model == 'WGANSentParser':
+	if args.model == 'DistilltagParser':
 		parser = Parser(vocab, config.word_dims, config.tag_dims, config.dropout_emb, config.lstm_layers, config.lstm_hiddens, config.dropout_lstm_input, config.dropout_lstm_hidden, config.mlp_arc_size, config.mlp_rel_size, config.dropout_mlp, config.choice_size, randn_init = True)
 		parser.initialize(os.path.join(args.baseline_path,'model'))
 		pc = parser.all_parameter_collection
 	
-	data_loader = MixedDataLoader([config.train_file, args.in_domain_file], [0.5, 0.5], config.num_buckets_train, vocab)
+	data_loader = DataLoader(config.train_file, config.num_buckets_train, vocab)
 	trainer = dy.RMSPropTrainer(pc, config.learning_rate, config.epsilon)
 	
 	global_step = 0
@@ -44,21 +43,19 @@ if __name__ == "__main__":
 	while global_step < config.train_iters:
 		print time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), '\nStart training epoch #%d'%(epoch, )
 		epoch += 1
-		for _out, _in in data_loader.get_batches(batch_size = config.train_batch_size):
-			for domain, _inputs in enumerate([_out, _in]):
-				words, tags, arcs, rels = _inputs
-				dy.renew_cg()
-				if global_step % (args.ncritic + 1) == 0:
-					parser.set_trainable_flags(train_emb = True, train_lstm = True, train_critic = False, train_score = True)
-					arc_accuracy, rel_accuracy, overall_accuracy, loss = parser.run(words, tags, arcs, rels, critic_scale = (args.critic_scale if domain ==1 else -args.critic_scale), dep_scale = (1. if domain ==0 else 0.5 ))
-				else:
-					parser.set_trainable_flags(train_emb = False, train_lstm = False, train_critic = True, train_score = False)
-					arc_accuracy, rel_accuracy, overall_accuracy, loss = parser.run(words, tags, arcs, rels, critic_scale = (-args.critic_scale if domain ==1 else 0.), dep_scale = 0.)	
-				loss = loss*0.5
-				loss_value = loss.scalar_value()
-				loss.backward()
-				sys.stdout.write("Step #%d: Acc: arc %.2f, rel %.2f, overall %.2f, loss %.3f\r\r" %(global_step, arc_accuracy, rel_accuracy, overall_accuracy, loss_value))
-				sys.stdout.flush()
+		for words, tags, arcs, rels in data_loader.get_batches(batch_size = config.train_batch_size):
+			dy.renew_cg()
+			if global_step % (args.ncritic + 1) == 0:
+				parser.set_trainable_flags(train_emb = True, train_lstm = True, train_critic = False, train_score = True)
+				arc_accuracy, rel_accuracy, overall_accuracy, loss = parser.run(words, tags, arcs, rels, critic_scale = (args.critic_scale if domain ==1 else -args.critic_scale), dep_scale = (1. if domain ==0 else 0.5 ))
+			else:
+				parser.set_trainable_flags(train_emb = False, train_lstm = False, train_critic = True, train_score = False)
+				arc_accuracy, rel_accuracy, overall_accuracy, loss = parser.run(words, tags, arcs, rels, critic_scale = (-args.critic_scale if domain ==1 else 0.), dep_scale = 0.)	
+			loss = loss*0.5
+			loss_value = loss.scalar_value()
+			loss.backward()
+			sys.stdout.write("Step #%d: Acc: arc %.2f, rel %.2f, overall %.2f, loss %.3f\r\r" %(global_step, arc_accuracy, rel_accuracy, overall_accuracy, loss_value))
+			sys.stdout.flush()
 			update_parameters()
 			parser.clip_critic(0.001)
 

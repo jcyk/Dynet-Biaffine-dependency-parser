@@ -102,11 +102,11 @@ if __name__ == '__main__':
     argparser.add_argument('--config_file', default='../configs/default.cfg')
     argparser.add_argument('--model', default='BaseParser')
     argparser.add_argument('--output_file', default='here')
-    argparser.add_argument('--notag', type = bool, default = False)
     args, extra_args = argparser.parse_known_args()
     config = Configurable(args.config_file, extra_args, for_test = True)
     Parser = getattr(models, args.model)
     vocab = cPickle.load(open(config.load_vocab_path))
+    _notag = False
     if args.model == 'BaseParser':
         parser = Parser(vocab, config.word_dims, config.tag_dims, config.dropout_emb, config.lstm_layers, config.lstm_hiddens, config.dropout_lstm_input, config.dropout_lstm_hidden, config.mlp_arc_size, config.mlp_rel_size, config.dropout_mlp, randn_init = True)
     elif args.model == 'SentParser':
@@ -114,10 +114,15 @@ if __name__ == '__main__':
     elif args.model == 'WGANSentParser':
         parser = Parser(vocab, config.word_dims, config.tag_dims, config.dropout_emb, config.lstm_layers, config.lstm_hiddens, config.dropout_lstm_input, config.dropout_lstm_hidden, config.mlp_arc_size, config.mlp_rel_size, config.dropout_mlp, config.choice_size, randn_init = True)    
     elif args.model == 'NotagParser':
+        _notag = True
         parser = Parser(vocab, config.word_dims, config.dropout_emb, config.lstm_layers, config.lstm_hiddens, config.dropout_lstm_input, config.dropout_lstm_hidden, config.mlp_arc_size, config.mlp_rel_size, config.dropout_mlp, randn_init = True)
     elif args.model == 'NotagParser_auxemb':
+        _notag = True
         parser = Parser(vocab, config.word_dims, config.aux_word_dims, config.dropout_emb, config.lstm_layers, config.lstm_hiddens, config.dropout_lstm_input, config.dropout_lstm_hidden, config.mlp_arc_size, config.mlp_rel_size, config.dropout_mlp, randn_init = True)
     elif args.model == 'NotagParser_auxfeat':
+        _notag = True
         parser = Parser(vocab, config.word_dims, config.aux_word_dims, config.dropout_emb, config.lstm_layers, config.lstm_hiddens, config.dropout_lstm_input, config.dropout_lstm_hidden, config.mlp_arc_size, config.mlp_rel_size, config.dropout_mlp, randn_init = True)     
+    elif args.model == 'DistilltagParser':
+        parser = Parser(vocab, config.word_dims, config.tag_dims, config.dropout_emb, config.lstm_layers, config.lstm_hiddens, config.dropout_lstm_input, config.dropout_lstm_hidden, config.mlp_arc_size, config.mlp_rel_size, config.dropout_mlp, config.choice_size, randn_init = True)    
     parser.load(config.load_model_path)
-    test(parser, vocab, config.num_buckets_test, config.test_batch_size, config.test_file, args.output_file, args.notag)
+    test(parser, vocab, config.num_buckets_test, config.test_batch_size, config.test_file, args.output_file, _notag)
