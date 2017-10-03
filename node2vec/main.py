@@ -82,7 +82,7 @@ def parse_args():
 	parser.add_argument('--window-size', type=int, default=5,
                     	help='Context size for optimization. Default is 10.')
 
-	parser.add_argument('--iter', default=1, type=int,
+	parser.add_argument('--iter', default=3, type=int,
                       help='Number of epochs in SGD')
 
 	parser.add_argument('--workers', type=int, default=8,
@@ -118,7 +118,7 @@ def read_graph():
 
 	if args.weighted:
 		for edge in graph:
-			if graph[edge] >2:
+			if graph[edge] >=5:
 				G.add_edge(edge[0], edge[1])
 				G[edge[0]][edge[1]]['weight'] = graph[edge]
 	else:

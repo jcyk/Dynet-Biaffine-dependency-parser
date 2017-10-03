@@ -29,9 +29,9 @@ def create_graph(file_list, typed):
 	edge_cnt = Counter()
 	edge_cnt.update(graph)
 
-	edge_file = open('dep.contexts_', 'w')
+	edge_file = open('dep.contexts', 'w')
 	for edge in graph:
-		if edge_cnt[edge] < 5:
+		if edge_cnt[edge] < 3:
 			continue
 		if typed:
 			out = "%s %s_%s\n%s %sI_%s\n"%(edge[0],edge[2],edge[1], edge[1], edge[2],edge[0])
@@ -48,17 +48,16 @@ def create_graph(file_list, typed):
 	cv = cv_cnt.update((x[1] for x in data))
 
 
-	with open('wv_', 'w') as wv_file:
+	with open('wv', 'w') as wv_file:
 		wv_file.write('</s> 0\n')
 		for x in wv_cnt.most_common():
-			print x
-			if x[1] >= 6:
+			if x[1] >= 5:
 				wv_file.write('%s %d\n'%(x[0],x[1]))
 
-	with open('cv_', 'w') as cv_file:
+	with open('cv', 'w') as cv_file:
 		cv_file.write('</s> 0\n')
 		for x in cv_cnt.most_common():
-			if x[1] >= 6:
+			if x[1] >= 5:
 				cv_file.write('%s %d\n'%(x[0],x[1]))
 
 

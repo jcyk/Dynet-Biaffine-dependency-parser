@@ -16,7 +16,7 @@ if __name__ == "__main__":
 	argparser.add_argument('--in_domain_file', default='../../node2vec/result0123')
 	argparser.add_argument('--model', default='WGANSentParser')
 	argparser.add_argument('--baseline_path', default='../ckpt/sota')
-	argparser.add_argument('--critic_scale', type=float, default = 0.1)
+	argparser.add_argument('--critic_scale', type=float, default = 10.)
 	argparser.add_argument('--ncritic', type=int, default = 5)
 
 	args, extra_args = argparser.parse_known_args()
@@ -34,6 +34,7 @@ if __name__ == "__main__":
 	trainer = dy.RMSPropTrainer(pc, config.learning_rate, config.epsilon)
 	
 	global_step = 0
+	inner_step = 0
 	def update_parameters():
 		trainer.learning_rate = config.learning_rate*config.decay**(global_step / config.decay_steps)
 		trainer.update()
@@ -48,25 +49,26 @@ if __name__ == "__main__":
 			for domain, _inputs in enumerate([_out, _in]):
 				words, tags, arcs, rels = _inputs
 				dy.renew_cg()
-				if global_step % (args.ncritic + 1) == 0:
+				if inner_step % (args.ncritic + 1) == 0:
 					parser.set_trainable_flags(train_emb = True, train_lstm = True, train_critic = False, train_score = True)
-					arc_accuracy, rel_accuracy, overall_accuracy, loss = parser.run(words, tags, arcs, rels, critic_scale = (args.critic_scale if domain ==1 else -args.critic_scale), dep_scale = (1. if domain ==0 else 0.5 ))
+					arc_accuracy, rel_accuracy, overall_accuracy, loss = parser.run(words, tags, arcs, rels, critic_scale = (args.critic_scale if domain ==0 else -args.critic_scale), dep_scale = (1. if domain ==0 else 0.5 ))
 				else:
 					parser.set_trainable_flags(train_emb = False, train_lstm = False, train_critic = True, train_score = False)
-					arc_accuracy, rel_accuracy, overall_accuracy, loss = parser.run(words, tags, arcs, rels, critic_scale = (-args.critic_scale if domain ==1 else 0.), dep_scale = 0.)	
-				loss = loss*0.5
-				loss_value = loss.scalar_value()
-				loss.backward()
-				sys.stdout.write("Step #%d: Acc: arc %.2f, rel %.2f, overall %.2f, loss %.3f\r\r" %(global_step, arc_accuracy, rel_accuracy, overall_accuracy, loss_value))
-				sys.stdout.flush()
+					arc_accuracy, rel_accuracy, overall_accuracy, loss = parser.run(words, tags, arcs, rels, critic_scale = (-args.critic_scale if domain ==0 else 0.), dep_scale = 0.)	
+				if type(loss) is not float:
+					loss_value = loss.scalar_value()
+					loss.backward()
 			update_parameters()
 			parser.clip_critic(0.001)
-
-			global_step += 1
-			if global_step % config.validate_every == 0:
-				print '\nTest on development set'
-				LAS, UAS = test(parser, vocab, config.num_buckets_valid, config.test_batch_size, config.dev_file, os.path.join(config.save_dir, 'valid_tmp'))
-				history(LAS, UAS)
-				if global_step > config.save_after and UAS > best_UAS:
-					best_UAS = UAS
-					parser.save(config.save_model_path)
+			sys.stdout.write("Step #%d: Acc: arc %.2f, rel %.2f, overall %.2f, loss %.3f\r\r" %(global_step, arc_accuracy, rel_accuracy, overall_accuracy, loss_value))
+			sys.stdout.flush()
+			inner_step +=1
+			if inner_step % (args.ncritic+ 1) ==0:
+				global_step += 1
+				if global_step % config.validate_every == 0:
+					print '\nTest on development set'
+					LAS, UAS = test(parser, vocab, config.num_buckets_valid, config.test_batch_size, config.dev_file, os.path.join(config.save_dir, 'valid_tmp'))
+					history(LAS, UAS)
+					if global_step > config.save_after and UAS > best_UAS:
+						best_UAS = UAS
+						parser.save(config.save_model_path)

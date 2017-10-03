@@ -31,8 +31,8 @@ class DistilltagParser(object):
 		self.tag_embs = pc.lookup_parameters_from_numpy(vocab.get_tag_embs(tag_dims))
 		self.dropout_emb = dropout_emb
 		self.LSTM_builders = []
-		f = orthonormal_VanillaLSTMBuilder(1, word_dims, lstm_hiddens, pc, randn_init)
-		b = orthonormal_VanillaLSTMBuilder(1, word_dims, lstm_hiddens, pc, randn_init)
+		f = orthonormal_VanillaLSTMBuilder(1, word_dims + tag_dims, lstm_hiddens, pc, randn_init)
+		b = orthonormal_VanillaLSTMBuilder(1, word_dims + tag_dims, lstm_hiddens, pc, randn_init)
 		self.LSTM_builders.append((f,b))
 		for i in xrange(lstm_layers-1):
 			f = orthonormal_VanillaLSTMBuilder(1, 2*lstm_hiddens, lstm_hiddens, pc, randn_init)
@@ -134,8 +134,7 @@ class DistilltagParser(object):
 				choice_logits = - dy.mean_dim(leaky_relu(dy.affine_transform([b_choice, W_choice, top_recur_tag])), 1)
 			else:
 				choice_logits =  dy.mean_dim(leaky_relu(dy.affine_transform([b_choice, W_choice, top_recur_tag])), 1) - dy.mean_dim(leaky_relu(dy.affine_transform([b_choice, W_choice, top_recur])), 1)
-			
-			in_decisions = dy.affine_transform([b_judge, W_judge, choice_logits])
+				
 		else:
 			emb_inputs = [ dy.cmult(w, 1.5) for w in word_embs]
 			top_recur = dy.concatenate_cols(biLSTM(self.in_LSTM_builders, emb_inputs, batch_size, 0., 0., update = False))
