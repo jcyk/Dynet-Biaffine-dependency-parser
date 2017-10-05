@@ -47,7 +47,7 @@ if __name__ == "__main__":
 		for words, tags, arcs, rels in data_loader.get_batches(batch_size = config.train_batch_size):
 			dy.renew_cg()
 			if inner_step % (args.ncritic + 1) == 0:
-				parser.set_trainable_flags(train_emb = True, train_lstm = True, train_critic = False, train_score = True)
+				parser.set_trainable_flags(train_emb = False, train_lstm = True, train_critic = False, train_score = False)
 				arc_accuracy, rel_accuracy, overall_accuracy, loss = parser.run(words, tags, arcs, rels, critic_scale = args.critic_scale, dep_scale = 1.)
 			else:
 				parser.set_trainable_flags(train_emb = False, train_lstm = False, train_critic = True, train_score = False)
