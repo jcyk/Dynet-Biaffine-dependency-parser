@@ -58,13 +58,8 @@ class DistilltagParser(object):
 			ret = []
 			for i in xrange(seq_len):
 				word_mask = np.random.binomial(1, 1. - dropout_emb, batch_size).astype(np.float32)
-				tag_mask = np.random.binomial(1, 1. - dropout_emb, batch_size).astype(np.float32)
-				scale = 3. / (2.*word_mask + tag_mask + 1e-12)
-				word_mask *= scale
-				tag_mask *= scale
 				word_mask = dy.inputTensor(word_mask, batched = True)
-				tag_mask = dy.inputTensor(tag_mask, batched = True)
-				ret.append((word_mask, tag_mask))
+				ret.append(word_mask)
 			return ret
 		self.generate_emb_mask = _emb_mask_generator
 
@@ -74,12 +69,12 @@ class DistilltagParser(object):
 		self.judge_b = trainable_params.add_parameters((1,), init = dy.ConstInitializer(0.))
 
 		self.in_LSTM_builders = []
-		f = orthonormal_VanillaLSTMBuilder(1, word_dims, lstm_hiddens, trainable_params, randn_init)
-		b = orthonormal_VanillaLSTMBuilder(1, word_dims, lstm_hiddens, trainable_params, randn_init)
+		f = orthonormal_VanillaLSTMBuilder(1, word_dims, lstm_hiddens, trainable_params)
+		b = orthonormal_VanillaLSTMBuilder(1, word_dims, lstm_hiddens, trainable_params)
 		self.in_LSTM_builders.append((f,b))
 		for i in xrange(lstm_layers-1):
-			f = orthonormal_VanillaLSTMBuilder(1, 2*lstm_hiddens, lstm_hiddens, trainable_params, randn_init)
-			b = orthonormal_VanillaLSTMBuilder(1, 2*lstm_hiddens, lstm_hiddens, trainable_params, randn_init)
+			f = orthonormal_VanillaLSTMBuilder(1, 2*lstm_hiddens, lstm_hiddens, trainable_params)
+			b = orthonormal_VanillaLSTMBuilder(1, 2*lstm_hiddens, lstm_hiddens, trainable_params)
 			self.in_LSTM_builders.append((f,b))
 
 		self._critic_params = [self.choice_W, self.choice_b, self.judge_W, self.judge_b]
@@ -121,10 +116,10 @@ class DistilltagParser(object):
 		
 		if isTrain:
 			emb_masks = self.generate_emb_mask(seq_len, batch_size)
-			emb_inputs_tag = [ dy.concatenate([dy.cmult(w, wm), dy.cmult(pos,posm)]) for w, pos, (wm, posm) in zip(word_embs,tag_embs,emb_masks)]
+			emb_inputs_tag = [ dy.cmult(dy.concatenate([w, pos]),wm) for w, pos, wm in zip(word_embs,tag_embs,emb_masks)]
 			top_recur_tag = dy.concatenate_cols(biLSTM(self.LSTM_builders, emb_inputs_tag, batch_size, self.dropout_lstm_input, self.dropout_lstm_hidden, update = False))
 			
-			emb_inputs = [ dy.cmult(w, wm+posm/2.) for w, (wm,posm) in zip(word_embs, emb_masks)]
+			emb_inputs = [ dy.cmult(w, wm) for w, wm in zip(word_embs, emb_masks)]
 			top_recur = dy.concatenate_cols(biLSTM(self.in_LSTM_builders, emb_inputs, batch_size, self.dropout_lstm_input , self.dropout_lstm_hidden, update = self.train_lstm))
 			
 			W_choice, b_choice = dy.parameter(self.choice_W, update = self.train_critic), dy.parameter(self.choice_b, update = self.train_critic)
@@ -134,9 +129,9 @@ class DistilltagParser(object):
 				choice_logits = - dy.mean_dim(leaky_relu(dy.affine_transform([b_choice, W_choice, top_recur_tag])), 1)
 			else:
 				choice_logits =  dy.mean_dim(leaky_relu(dy.affine_transform([b_choice, W_choice, top_recur_tag])), 1) - dy.mean_dim(leaky_relu(dy.affine_transform([b_choice, W_choice, top_recur])), 1)
-				
+			in_decisions = dy.affine_transform([b_judge, W_judge, choice_logits])	
 		else:
-			emb_inputs = [ dy.cmult(w, 1.5) for w in word_embs]
+			emb_inputs = word_embs
 			top_recur = dy.concatenate_cols(biLSTM(self.in_LSTM_builders, emb_inputs, batch_size, 0., 0., update = False))
 
 		if isTrain:
