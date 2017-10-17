@@ -3,9 +3,9 @@ from __future__ import division
 import dynet as dy
 import numpy as np
 
-from lib import biLSTM, leaky_relu, bilinear, orthonormal_initializer, arc_argmax, rel_argmax, orthonormal_VanillaLSTMBuilder
+from lib import uniLSTM, leaky_relu, bilinear, orthonormal_initializer, arc_argmax, rel_argmax, orthonormal_VanillaLSTMBuilder
 
-class WGANSentParser(object):
+class LossParser(object):
 	def __init__(self, vocab,
 					   word_dims,
 					   tag_dims,
@@ -28,16 +28,12 @@ class WGANSentParser(object):
 		self._vocab = vocab
 		self.word_embs = pc.lookup_parameters_from_numpy(vocab.get_word_embs(word_dims))
 		self.pret_word_embs = pc.lookup_parameters_from_numpy(vocab.get_pret_embs())
-		#self.tag_embs = pc.lookup_parameters_from_numpy(vocab.get_tag_embs(tag_dims))
+
 		self.dropout_emb = dropout_emb
 		self.LSTM_builders = []
-		f = orthonormal_VanillaLSTMBuilder(1, word_dims, lstm_hiddens, pc, randn_init)
-		b = orthonormal_VanillaLSTMBuilder(1, word_dims, lstm_hiddens, pc, randn_init)
+		f = orthonormal_VanillaLSTMBuilder(lstm_layers, word_dims, lstm_hiddens, pc, randn_init)
+		b = orthonormal_VanillaLSTMBuilder(lstm_layers, word_dims, lstm_hiddens, pc, randn_init)
 		self.LSTM_builders.append((f,b))
-		for i in xrange(lstm_layers-1):
-			f = orthonormal_VanillaLSTMBuilder(1, 2*lstm_hiddens, lstm_hiddens, pc, randn_init)
-			b = orthonormal_VanillaLSTMBuilder(1, 2*lstm_hiddens, lstm_hiddens, pc, randn_init)
-			self.LSTM_builders.append((f,b))
 		self.dropout_lstm_input = dropout_lstm_input
 		self.dropout_lstm_hidden = dropout_lstm_hidden
 
@@ -61,6 +57,12 @@ class WGANSentParser(object):
 		self.judge_b = trainable_params.add_parameters((1,), init = dy.ConstInitializer(0.))
 
 		self._critic_params = [self.att_W, self.choice_W, self.choice_b, self.judge_W, self.judge_b]
+
+		self.tgt_embs_W = trainable_params.add_parameters((vocab.words_in_train, lstm_hiddens))
+		self.tgt_embs_b = trainable_params.add_parameters((vocab.words_in_train,), init = dy.ConstInitializer(0.))
+		self.tag_embs_W = trainable_params.add_parameters((vocab.tag_size, 2*lstm_hiddens))
+		self.tag_embs_b = trainable_params.add_parameters(vocab.tag_size, init = dy.ConstInitializer(0.))
+
 		self._all_params = all_params
 		self._pc = pc
 		self._trainable_params = trainable_params
@@ -80,7 +82,7 @@ class WGANSentParser(object):
 	def trainable_parameter_collection(self):
 		return self._trainable_params
 
-	def run(self, word_inputs, tag_inputs = None, arc_targets = None, rel_targets = None, isTrain = True, critic_scale =0., dep_scale = 0.): 
+	def run(self, word_inputs, tag_inputs = None, arc_targets = None, rel_targets = None, isTrain = True, critic_scale =0., dep_scale = 0., lm_scale= 0., tag_scale = 0.): 
 		# inputs, targets: seq_len x batch_size
 		def dynet_flatten_numpy(ndarray):
 			return np.reshape(ndarray, (-1,), 'F')
@@ -99,16 +101,44 @@ class WGANSentParser(object):
 		if isTrain:
 			word_embs= [ dy.dropout_dim(w, 0, self.dropout_emb) for w in word_embs]
 		
-		top_recur = dy.concatenate_cols(biLSTM(self.LSTM_builders, word_embs, batch_size, self.dropout_lstm_input if isTrain else 0., self.dropout_lstm_hidden if isTrain else 0., update = self.train_lstm))
-		
-		W_att = dy.parameter(self.att_W, update = self.train_critic)
-		att_weights = dy.softmax(dy.reshape(W_att * top_recur,(seq_len,), batch_size)
+		f_recur = uniLSTM(self.LSTM_builders[0][0], word_embs, batch_size, self.dropout_lstm_input if isTrain else 0., self.dropout_lstm_hidden if isTrain else 0., update = self.train_lstm))
+		b_recur = uniLSTM(self.LSTM_builders[0][1], word_embs[::-1], batch_size, self.dropout_lstm_input if isTrain else 0., self.dropout_lstm_hidden if isTrain else 0., update = self.train_lstm))
+		b_recur = b_recur[::-1]
+		fb_recur = [dy.concatenate([f,b]) for f, b in zip(f_recur, b_recur)]
+		top_recur = dy.concatenate_cols(fb_recur)		
+		if lm_scale != 0.:
+			W_tgt, b_tgt = dy.parameter(self.tgt_embs_W), dy.parameter(self.tgt_embs_b)
+			losses = []
+			for h, tgt, msk in zip(f_recur[:-1], word_inputs[1:], mask[1:]):
+				y  = W_tgt * h + b_tgt
+				tgt = np.where( tgt<self._vocab.words_in_train, tgt, self._vocab.UNK)
+				losses.append(dy.pickneglogsoftmax_batch(y, tgt) * dy.inputTensor(msk, batched=True))
+			
+			for h, tgt, msk in zip(b_recur[1:], word_inputs[:-1], mask[:-1]):
+				y  = W_tgt * h + b_tgt
+				tgt = np.where( tgt<self._vocab.words_in_train, tgt, self._vocab.UNK)
+				losses.append(dy.pickneglogsoftmax_batch(y, tgt) * dy.inputTensor(msk, batched=True))
+			lm_loss = dy.esum(losses) / num_tokens
+			self.lm_loss  = lm_loss.scalar_value()
+		if tag_scale != 0.:
+			W_tag, b_tag = dy.parameter(self.tag_embs_W), dy.parameter(self.tag_embs_b)
+			losses = []
+			for h, tgt, msk in zip(fb_recur, tag_inputs, mask):
+				y = W_tag * h + b_tag
+				losses.append(dy.pickneglogsoftmax_batch(y, tgt) * dy.inputTensor(msk, batched))
+			tag_loss = dy.esum(losses) / num_tokens
+			self.tag_loss = tag_loss.scalar_value()
 
-		W_choice, b_choice = dy.parameter(self.choice_W, update = self.train_critic), dy.parameter(self.choice_b, update = self.train_critic)
-		W_judge, b_judge = dy.parameter(self.judge_W, update = self.train_critic), dy.parameter(self.judge_b, update = self.train_critic)
-		choice_logits = leaky_relu(dy.affine_transform([b_choice, W_choice, top_recur])) * att_weights
-		in_decisions = dy.affine_transform([b_judge, W_judge, choice_logits])
-		
+		if critic_scale != 0.:
+			W_att = dy.parameter(self.att_W, update = self.train_critic)
+			att_weights = dy.softmax(dy.reshape(W_att * top_recur,(seq_len,), batch_size)
+			W_choice, b_choice = dy.parameter(self.choice_W, update = self.train_critic), dy.parameter(self.choice_b, update = self.train_critic)
+			W_judge, b_judge = dy.parameter(self.judge_W, update = self.train_critic), dy.parameter(self.judge_b, update = self.train_critic)
+			choice_logits = leaky_relu(dy.affine_transform([b_choice, W_choice, top_recur])) * att_weights
+			in_decisions = dy.affine_transform([b_judge, W_judge, choice_logits])
+			critic_loss = dy.sum_batches(in_decisions) / batch_size
+			self.critic_loss = critic_loss.scalar_value()
+
 		if isTrain:
 			top_recur = dy.dropout_dim(top_recur, 1, self.dropout_mlp)
 
@@ -165,14 +195,14 @@ class WGANSentParser(object):
 			# batch_size x #dep x #head x #nclasses
 	
 		if isTrain or arc_targets is not None:
-			critic_loss = dy.sum_batches(in_decisions) / batch_size
 			dep_loss = arc_loss + rel_loss
-			loss = (dep_scale * dep_loss if dep_scale != 0. else 0. ) + ( critic_scale * critic_loss  if critic_scale != 0. else 0.)
+			self.dep_loss = dep_loss.scalar_value()
+			loss = (dep_scale * dep_loss if dep_scale != 0. else 0. ) + ( critic_scale * critic_loss  if critic_scale != 0. else 0.) + ( lm_scale * lm_loss  if lm_scale != 0. else 0.)  + ( tag_scale * tag_loss  if tag_scale != 0. else 0.) 
 			correct = rel_correct * dynet_flatten_numpy(arc_correct)
 			overall_accuracy = np.sum(correct) / num_tokens 
 		
 		if isTrain:
-			return arc_accuracy, rel_accuracy, overall_accuracy, loss ,dep_loss.scalar_value(), critic_loss.scalar_value()
+			return arc_accuracy, rel_accuracy, overall_accuracy, loss
 		
 		outputs = []
 		

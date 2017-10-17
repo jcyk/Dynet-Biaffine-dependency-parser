@@ -14,21 +14,23 @@ if __name__ == "__main__":
 	argparser = argparse.ArgumentParser()
 	argparser.add_argument('--config_file', default='../configs/sent.cfg')
 	argparser.add_argument('--in_domain_file', default='../../node2vec/result0123')
-	argparser.add_argument('--model', default='WGANSentParser')
-	argparser.add_argument('--baseline_path', default='../ckpt/sota')
+	argparser.add_argument('--model', default='LossParser')
+	#argparser.add_argument('--baseline_path', default='../ckpt/sota')
 	argparser.add_argument('--critic_scale', type=float, default = 10.)
+	argparser.add_argument('--lm_scale', type=float, default = 0.1)
+	argparser.add_argument('--tag_scale', type=float, default = 0.1)
 	argparser.add_argument('--ncritic', type=int, default = 5)
 
 	args, extra_args = argparser.parse_known_args()
 	config = Configurable(args.config_file, extra_args)
 	Parser = getattr(models, args.model)
 
-	vocab = cPickle.load(open(os.path.join(args.baseline_path,'vocab')))
+	vocab = Vocab(config.train_file, config.pretrained_embeddings_file, config.min_occur_count)
+	#vocab = cPickle.load(open(os.path.join(args.baseline_path,'vocab')))
 	cPickle.dump(vocab, open(config.save_vocab_path, 'w'))
-	if args.model == 'WGANSentParser':
-		parser = Parser(vocab, config.word_dims, config.tag_dims, config.dropout_emb, config.lstm_layers, config.lstm_hiddens, config.dropout_lstm_input, config.dropout_lstm_hidden, config.mlp_arc_size, config.mlp_rel_size, config.dropout_mlp, config.choice_size, randn_init = True)
-		parser.initialize(os.path.join(args.baseline_path,'model'))
-		pc = parser.all_parameter_collection
+	parser = Parser(vocab, config.word_dims, config.tag_dims, config.dropout_emb, config.lstm_layers, config.lstm_hiddens, config.dropout_lstm_input, config.dropout_lstm_hidden, config.mlp_arc_size, config.mlp_rel_size, config.dropout_mlp, config.choice_size)
+	#parser.initialize(os.path.join(args.baseline_path,'model'))
+	pc = parser.all_parameter_collection
 	
 	data_loader = MixedDataLoader([config.train_file, args.in_domain_file], [0.5, 0.5], config.num_buckets_train, vocab)
 	trainer = dy.RMSPropTrainer(pc, config.learning_rate, config.epsilon)
@@ -50,20 +52,20 @@ if __name__ == "__main__":
 				words, tags, arcs, rels = _inputs
 				dy.renew_cg()
 				if inner_step % (args.ncritic + 1) == 0:
-					parser.set_trainable_flags(train_emb = True, train_lstm = True, train_critic = False, train_score = True)
-					arc_accuracy, rel_accuracy, overall_accuracy, loss, dep_loss, critic_loss = parser.run(words, tags, arcs, rels, critic_scale = (args.critic_scale if domain ==0 else -args.critic_scale), dep_scale = (1. if domain ==0 else 0.5 ))
+					parser.set_trainable_flags(train_emb = False, train_lstm = True, train_critic = False, train_score = True)
+					arc_accuracy, rel_accuracy, overall_accuracy, loss = parser.run(words, tags, arcs, rels, critic_scale = (args.critic_scale if domain ==0 else -args.critic_scale), dep_scale = (1. if domain ==0 else 0. ), lm_scale = args.lm_scale, tag_scale = (args.tag_scale  if domain ==0 else 0. ))
 				else:
 					parser.set_trainable_flags(train_emb = False, train_lstm = False, train_critic = True, train_score = False)
-					arc_accuracy, rel_accuracy, overall_accuracy, loss, dep_loss, critic_loss = parser.run(words, tags, arcs, rels, critic_scale = (-args.critic_scale if domain ==0 else 0.), dep_scale = 0.)	
+					arc_accuracy, rel_accuracy, overall_accuracy, loss = parser.run(words, tags, arcs, rels, critic_scale = (-args.critic_scale if domain ==0 else 0.), dep_scale = 0.)	
 				if type(loss) is not float:
 					loss_value = loss.scalar_value()
 					loss.backward()
 				else:
 					loss_value = 0.
-				sys.stdout.write("Step #%d: Acc: arc %.2f, rel %.2f, overall %.2f, loss %.3f, dep_loss %.3f, critic_loss %.3f\r\r" %(global_step, arc_accuracy, rel_accuracy, overall_accuracy, loss_value, dep_loss, critic_loss))
+				sys.stdout.write("Step #%d: Acc: arc %.2f, rel %.2f, overall %.2f, loss %.3f\r\r" %(global_step, arc_accuracy, rel_accuracy, overall_accuracy, loss_value))
 				sys.stdout.flush()
 			update_parameters()
-			parser.clip_critic(0.001)
+			parser.clip_critic(0.01)
 			inner_step +=1
 			if inner_step % (args.ncritic+ 1) ==0:
 				global_step += 1

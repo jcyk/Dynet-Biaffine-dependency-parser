@@ -15,6 +15,14 @@ def orthonormal_VanillaLSTMBuilder(lstm_layers, input_dims, lstm_hiddens, pc, ra
 		b[lstm_hiddens:2*lstm_hiddens] = -1.0
 		params[2].set_value(b)
 	return builder
+	
+def uniLSTM(builder, inputs, batch_size = None, dropout_x = 0., dropout_h = 0., update = True):
+	h0 = builder.initial_state(update = update)
+	builder.set_dropouts(dropout_x, dropout_h)
+	if batch_size is not None:
+		builder.set_dropout_masks(batch_size)
+	hs = h0.transduce(inputs)
+	return hs
 
 def biLSTM(builders, inputs, batch_size = None, dropout_x = 0., dropout_h = 0., update = True):
 	for fb, bb in builders:
