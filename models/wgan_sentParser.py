@@ -102,7 +102,7 @@ class WGANSentParser(object):
 		top_recur = dy.concatenate_cols(biLSTM(self.LSTM_builders, word_embs, batch_size, self.dropout_lstm_input if isTrain else 0., self.dropout_lstm_hidden if isTrain else 0., update = self.train_lstm))
 		
 		W_att = dy.parameter(self.att_W, update = self.train_critic)
-		att_weights = dy.softmax(dy.reshape(W_att * top_recur,(seq_len,), batch_size)
+		att_weights = dy.softmax(dy.reshape(W_att * top_recur,(seq_len,), batch_size))
 
 		W_choice, b_choice = dy.parameter(self.choice_W, update = self.train_critic), dy.parameter(self.choice_b, update = self.train_critic)
 		W_judge, b_judge = dy.parameter(self.judge_W, update = self.train_critic), dy.parameter(self.judge_b, update = self.train_critic)

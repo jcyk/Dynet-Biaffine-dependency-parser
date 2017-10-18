@@ -101,8 +101,8 @@ class LossParser(object):
 		if isTrain:
 			word_embs= [ dy.dropout_dim(w, 0, self.dropout_emb) for w in word_embs]
 		
-		f_recur = uniLSTM(self.LSTM_builders[0][0], word_embs, batch_size, self.dropout_lstm_input if isTrain else 0., self.dropout_lstm_hidden if isTrain else 0., update = self.train_lstm))
-		b_recur = uniLSTM(self.LSTM_builders[0][1], word_embs[::-1], batch_size, self.dropout_lstm_input if isTrain else 0., self.dropout_lstm_hidden if isTrain else 0., update = self.train_lstm))
+		f_recur = uniLSTM(self.LSTM_builders[0][0], word_embs, batch_size, self.dropout_lstm_input if isTrain else 0., self.dropout_lstm_hidden if isTrain else 0., update = self.train_lstm)
+		b_recur = uniLSTM(self.LSTM_builders[0][1], word_embs[::-1], batch_size, self.dropout_lstm_input if isTrain else 0., self.dropout_lstm_hidden if isTrain else 0., update = self.train_lstm)
 		b_recur = b_recur[::-1]
 		fb_recur = [dy.concatenate([f,b]) for f, b in zip(f_recur, b_recur)]
 		top_recur = dy.concatenate_cols(fb_recur)		
@@ -118,20 +118,20 @@ class LossParser(object):
 				y  = W_tgt * h + b_tgt
 				tgt = np.where( tgt<self._vocab.words_in_train, tgt, self._vocab.UNK)
 				losses.append(dy.pickneglogsoftmax_batch(y, tgt) * dy.inputTensor(msk, batched=True))
-			lm_loss = dy.esum(losses) / num_tokens
+			lm_loss = dy.sum_batches(dy.esum(losses))/ num_tokens
 			self.lm_loss  = lm_loss.scalar_value()
 		if tag_scale != 0.:
 			W_tag, b_tag = dy.parameter(self.tag_embs_W), dy.parameter(self.tag_embs_b)
 			losses = []
 			for h, tgt, msk in zip(fb_recur, tag_inputs, mask):
 				y = W_tag * h + b_tag
-				losses.append(dy.pickneglogsoftmax_batch(y, tgt) * dy.inputTensor(msk, batched))
-			tag_loss = dy.esum(losses) / num_tokens
+				losses.append(dy.pickneglogsoftmax_batch(y, tgt) * dy.inputTensor(msk, batched = True))
+			tag_loss = dy.sum_batches(dy.esum(losses)) / num_tokens
 			self.tag_loss = tag_loss.scalar_value()
 
 		if critic_scale != 0.:
 			W_att = dy.parameter(self.att_W, update = self.train_critic)
-			att_weights = dy.softmax(dy.reshape(W_att * top_recur,(seq_len,), batch_size)
+			att_weights = dy.softmax(dy.reshape(W_att * top_recur,(seq_len,), batch_size))
 			W_choice, b_choice = dy.parameter(self.choice_W, update = self.train_critic), dy.parameter(self.choice_b, update = self.train_critic)
 			W_judge, b_judge = dy.parameter(self.judge_W, update = self.train_critic), dy.parameter(self.judge_b, update = self.train_critic)
 			choice_logits = leaky_relu(dy.affine_transform([b_choice, W_choice, top_recur])) * att_weights
