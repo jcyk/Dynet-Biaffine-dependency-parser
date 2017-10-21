@@ -58,8 +58,8 @@ class LossParser(object):
 
 		self._critic_params = [self.att_W, self.choice_W, self.choice_b, self.judge_W, self.judge_b]
 
-		self.tgt_embs_W = trainable_params.add_parameters((vocab.words_in_train, lstm_hiddens))
-		self.tgt_embs_b = trainable_params.add_parameters((vocab.words_in_train,), init = dy.ConstInitializer(0.))
+		self.tgt_embs_W = trainable_params.add_parameters((vocab.vocab_size, lstm_hiddens))
+		self.tgt_embs_b = trainable_params.add_parameters((vocab.vocab_size,), init = dy.ConstInitializer(0.))
 		self.tag_embs_W = trainable_params.add_parameters((vocab.tag_size, 2*lstm_hiddens))
 		self.tag_embs_b = trainable_params.add_parameters(vocab.tag_size, init = dy.ConstInitializer(0.))
 
@@ -111,15 +111,14 @@ class LossParser(object):
 			losses = []
 			for h, tgt, msk in zip(f_recur[:-1], word_inputs[1:], mask[1:]):
 				y  = W_tgt * h + b_tgt
-				tgt = np.where( tgt<self._vocab.words_in_train, tgt, self._vocab.UNK)
 				losses.append(dy.pickneglogsoftmax_batch(y, tgt) * dy.inputTensor(msk, batched=True))
 			
 			for h, tgt, msk in zip(b_recur[1:], word_inputs[:-1], mask[:-1]):
 				y  = W_tgt * h + b_tgt
-				tgt = np.where( tgt<self._vocab.words_in_train, tgt, self._vocab.UNK)
 				losses.append(dy.pickneglogsoftmax_batch(y, tgt) * dy.inputTensor(msk, batched=True))
 			lm_loss = dy.sum_batches(dy.esum(losses))/ num_tokens
 			self.lm_loss  = lm_loss.scalar_value()
+			
 		if tag_scale != 0.:
 			W_tag, b_tag = dy.parameter(self.tag_embs_W), dy.parameter(self.tag_embs_b)
 			losses = []
