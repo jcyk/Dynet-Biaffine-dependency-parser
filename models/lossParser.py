@@ -34,6 +34,14 @@ class LossParser(object):
 		f = orthonormal_VanillaLSTMBuilder(lstm_layers, word_dims, lstm_hiddens, pc, randn_init)
 		b = orthonormal_VanillaLSTMBuilder(lstm_layers, word_dims, lstm_hiddens, pc, randn_init)
 		self.LSTM_builders.append((f,b))
+
+		#f = orthonormal_VanillaLSTMBuilder(1, word_dims, lstm_hiddens, pc, randn_init)
+		#b = orthonormal_VanillaLSTMBuilder(1, word_dims, lstm_hiddens, pc, randn_init)
+		#self.LSTM_builders.append((f,b))
+		#for i in xrange(lstm_layers-1):
+		#	f = orthonormal_VanillaLSTMBuilder(1, 2*lstm_hiddens, lstm_hiddens, pc, randn_init)
+		#	b = orthonormal_VanillaLSTMBuilder(1, 2*lstm_hiddens, lstm_hiddens, pc, randn_init)
+		#	self.LSTM_builders.append((f,b))
 		self.dropout_lstm_input = dropout_lstm_input
 		self.dropout_lstm_hidden = dropout_lstm_hidden
 
@@ -105,7 +113,9 @@ class LossParser(object):
 		b_recur = uniLSTM(self.LSTM_builders[0][1], word_embs[::-1], batch_size, self.dropout_lstm_input if isTrain else 0., self.dropout_lstm_hidden if isTrain else 0., update = self.train_lstm)
 		b_recur = b_recur[::-1]
 		fb_recur = [dy.concatenate([f,b]) for f, b in zip(f_recur, b_recur)]
-		top_recur = dy.concatenate_cols(fb_recur)		
+		top_recur = dy.concatenate_cols(fb_recur)
+		#top_recur = dy.concatenate_cols(biLSTM(self.LSTM_builders, word_embs, batch_size, self.dropout_lstm_input if isTrain else 0., self.dropout_lstm_hidden if isTrain else 0., update = self.train_lstm))
+				
 		if lm_scale != 0.:
 			W_tgt, b_tgt = dy.parameter(self.tgt_embs_W), dy.parameter(self.tgt_embs_b)
 			losses = []
