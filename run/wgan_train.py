@@ -13,10 +13,10 @@ if __name__ == "__main__":
 	np.random.seed(666)
 	argparser = argparse.ArgumentParser()
 	argparser.add_argument('--config_file', default='../configs/sent.cfg')
-	argparser.add_argument('--in_domain_file', default='../../node2vec/result0123')
+	argparser.add_argument('--in_domain_file', default='../../result0123')
 	argparser.add_argument('--model', default='WGANSentParser')
 	argparser.add_argument('--baseline_path', default='../ckpt/sota')
-	argparser.add_argument('--critic_scale', type=float, default = 10.)
+	argparser.add_argument('--critic_scale', type=float, default = 1.)
 	argparser.add_argument('--ncritic', type=int, default = 5)
 
 	args, extra_args = argparser.parse_known_args()
@@ -49,21 +49,21 @@ if __name__ == "__main__":
 			for domain, _inputs in enumerate([_out, _in]):
 				words, tags, arcs, rels = _inputs
 				dy.renew_cg()
-				if inner_step % (args.ncritic + 1) == 0:
-					parser.set_trainable_flags(train_emb = True, train_lstm = True, train_critic = False, train_score = True)
-					arc_accuracy, rel_accuracy, overall_accuracy, loss, dep_loss, critic_loss = parser.run(words, tags, arcs, rels, critic_scale = (args.critic_scale if domain ==0 else -args.critic_scale), dep_scale = (1. if domain ==0 else 0.5 ))
+				if inner_step % (args.ncritic + 1) == 0 and inner_step > 1000:
+					parser.set_trainable_flags(train_emb = False, train_lstm = True, train_critic = False, train_score = True)
+					arc_accuracy, rel_accuracy, overall_accuracy, loss, dep_loss, critic_loss = parser.run(words, tags, arcs, rels, critic_scale = (args.critic_scale if domain ==0 else -args.critic_scale), dep_scale = (1. if domain ==0 else 0. ))
 				else:
 					parser.set_trainable_flags(train_emb = False, train_lstm = False, train_critic = True, train_score = False)
-					arc_accuracy, rel_accuracy, overall_accuracy, loss, dep_loss, critic_loss = parser.run(words, tags, arcs, rels, critic_scale = (-args.critic_scale if domain ==0 else 0.), dep_scale = 0.)	
+					arc_accuracy, rel_accuracy, overall_accuracy, loss, dep_loss, critic_loss = parser.run(words, tags, arcs, rels, critic_scale = (-args.critic_scale if domain ==0 else args.critic_scale), dep_scale = 0.)	
 				if type(loss) is not float:
 					loss_value = loss.scalar_value()
 					loss.backward()
 				else:
 					loss_value = 0.
-				sys.stdout.write("Step #%d: Acc: arc %.2f, rel %.2f, overall %.2f, loss %.3f, dep_loss %.3f, critic_loss %.3f\r\r" %(global_step, arc_accuracy, rel_accuracy, overall_accuracy, loss_value, dep_loss, critic_loss))
+				sys.stdout.write("Step #%d: Acc: arc %.2f, rel %.2f, overall %.2f, loss %.3f, dep_loss %.3f, critic_loss %.3f, dep_loss %.3f, critic_score %.3f, domain %d\r\r" %(global_step, arc_accuracy, rel_accuracy, overall_accuracy, loss_value, parser.dep_loss, parser.critic_loss, domain))
 				sys.stdout.flush()
 			update_parameters()
-			parser.clip_critic(0.001)
+			parser.clip_critic(0.01)
 			inner_step +=1
 			if inner_step % (args.ncritic+ 1) ==0:
 				global_step += 1

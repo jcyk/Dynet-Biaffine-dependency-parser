@@ -108,6 +108,8 @@ class WGANSentParser(object):
 		W_judge, b_judge = dy.parameter(self.judge_W, update = self.train_critic), dy.parameter(self.judge_b, update = self.train_critic)
 		choice_logits = leaky_relu(dy.affine_transform([b_choice, W_choice, top_recur])) * att_weights
 		in_decisions = dy.affine_transform([b_judge, W_judge, choice_logits])
+		critic_loss = dy.sum_batches(in_decisions) / batch_size
+		self.critic_loss = critic_loss.scalar_value()
 		
 		if isTrain:
 			top_recur = dy.dropout_dim(top_recur, 1, self.dropout_mlp)
@@ -165,14 +167,14 @@ class WGANSentParser(object):
 			# batch_size x #dep x #head x #nclasses
 	
 		if isTrain or arc_targets is not None:
-			critic_loss = dy.sum_batches(in_decisions) / batch_size
 			dep_loss = arc_loss + rel_loss
+			self.dep_loss = dep_loss.scalar_value()
 			loss = (dep_scale * dep_loss if dep_scale != 0. else 0. ) + ( critic_scale * critic_loss  if critic_scale != 0. else 0.)
 			correct = rel_correct * dynet_flatten_numpy(arc_correct)
 			overall_accuracy = np.sum(correct) / num_tokens 
 		
 		if isTrain:
-			return arc_accuracy, rel_accuracy, overall_accuracy, loss ,dep_loss.scalar_value(), critic_loss.scalar_value()
+			return arc_accuracy, rel_accuracy, overall_accuracy, loss
 		
 		outputs = []
 		

@@ -3,7 +3,7 @@ from __future__ import division
 import dynet as dy
 import numpy as np
 
-from lib import uniLSTM, leaky_relu, bilinear, orthonormal_initializer, arc_argmax, rel_argmax, orthonormal_VanillaLSTMBuilder
+from lib import biLSTM, uniLSTM, leaky_relu, bilinear, orthonormal_initializer, arc_argmax, rel_argmax, orthonormal_VanillaLSTMBuilder
 
 class LossParser(object):
 	def __init__(self, vocab,

@@ -33,7 +33,7 @@ if __name__ == "__main__":
 	pc = parser.all_parameter_collection
 	
 	data_loader = MixedDataLoader([config.train_file, args.in_domain_file], [0.5, 0.5], config.num_buckets_train, vocab)
-	trainer = dy.RMSPropTrainer(pc, config.learning_rate, config.epsilon)
+	trainer = dy.AdamTrainer(pc, config.learning_rate, config.beta_1, config.beta_2, config.epsilon)
 	
 	global_step = 0
 	inner_step = 0
