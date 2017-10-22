@@ -30,18 +30,20 @@ class LossParser(object):
 		self.pret_word_embs = pc.lookup_parameters_from_numpy(vocab.get_pret_embs())
 
 		self.dropout_emb = dropout_emb
+		self.lstm_hiddens = lstm_hiddens
 		self.LSTM_builders = []
-		f = orthonormal_VanillaLSTMBuilder(lstm_layers, word_dims, lstm_hiddens, pc, randn_init)
-		b = orthonormal_VanillaLSTMBuilder(lstm_layers, word_dims, lstm_hiddens, pc, randn_init)
-		self.LSTM_builders.append((f,b))
-
-		#f = orthonormal_VanillaLSTMBuilder(1, word_dims, lstm_hiddens, pc, randn_init)
-		#b = orthonormal_VanillaLSTMBuilder(1, word_dims, lstm_hiddens, pc, randn_init)
+		#f = orthonormal_VanillaLSTMBuilder(lstm_layers, word_dims, lstm_hiddens, pc, randn_init)
+		#b = orthonormal_VanillaLSTMBuilder(lstm_layers, word_dims, lstm_hiddens, pc, randn_init)
 		#self.LSTM_builders.append((f,b))
-		#for i in xrange(lstm_layers-1):
-		#	f = orthonormal_VanillaLSTMBuilder(1, 2*lstm_hiddens, lstm_hiddens, pc, randn_init)
-		#	b = orthonormal_VanillaLSTMBuilder(1, 2*lstm_hiddens, lstm_hiddens, pc, randn_init)
-		#	self.LSTM_builders.append((f,b))
+
+		f = orthonormal_VanillaLSTMBuilder(1, word_dims, lstm_hiddens, pc, randn_init)
+		b = orthonormal_VanillaLSTMBuilder(1, word_dims, lstm_hiddens, pc, randn_init)
+		self.LSTM_builders.append((f,b))
+		for i in xrange(lstm_layers-1):
+			f = orthonormal_VanillaLSTMBuilder(1, 2*lstm_hiddens, lstm_hiddens, pc, randn_init)
+			b = orthonormal_VanillaLSTMBuilder(1, 2*lstm_hiddens, lstm_hiddens, pc, randn_init)
+			self.LSTM_builders.append((f,b))
+		
 		self.dropout_lstm_input = dropout_lstm_input
 		self.dropout_lstm_hidden = dropout_lstm_hidden
 
@@ -109,13 +111,17 @@ class LossParser(object):
 		if isTrain:
 			word_embs= [ dy.dropout_dim(w, 0, self.dropout_emb) for w in word_embs]
 		
-		f_recur = uniLSTM(self.LSTM_builders[0][0], word_embs, batch_size, self.dropout_lstm_input if isTrain else 0., self.dropout_lstm_hidden if isTrain else 0., update = self.train_lstm)
-		b_recur = uniLSTM(self.LSTM_builders[0][1], word_embs[::-1], batch_size, self.dropout_lstm_input if isTrain else 0., self.dropout_lstm_hidden if isTrain else 0., update = self.train_lstm)
-		b_recur = b_recur[::-1]
+		#f_recur = uniLSTM(self.LSTM_builders[0][0], word_embs, batch_size, self.dropout_lstm_input if isTrain else 0., self.dropout_lstm_hidden if isTrain else 0., update = self.train_lstm)
+		#b_recur = uniLSTM(self.LSTM_builders[0][1], word_embs[::-1], batch_size, self.dropout_lstm_input if isTrain else 0., self.dropout_lstm_hidden if isTrain else 0., update = self.train_lstm)
+		#b_recur = b_recur[::-1]
+		#fb_recur = [dy.concatenate([f,b]) for f, b in zip(f_recur, b_recur)]
+		#top_recur = dy.concatenate_cols(fb_recur)
+		
+		top_recur = biLSTM(self.LSTM_builders, word_embs, batch_size, self.dropout_lstm_input if isTrain else 0., self.dropout_lstm_hidden if isTrain else 0., update = self.train_lstm)
+		f_recur = [ x[:self.lstm_hiddens] for x in top_recur]
+		b_recur = [ x[self.lstm_hiddens:] for x in top_recur]
 		fb_recur = [dy.concatenate([f,b]) for f, b in zip(f_recur, b_recur)]
-		top_recur = dy.concatenate_cols(fb_recur)
-		#top_recur = dy.concatenate_cols(biLSTM(self.LSTM_builders, word_embs, batch_size, self.dropout_lstm_input if isTrain else 0., self.dropout_lstm_hidden if isTrain else 0., update = self.train_lstm))
-				
+		top_recur = dy.concatenate_cols(top_recur)
 		if lm_scale != 0.:
 			W_tgt, b_tgt = dy.parameter(self.tgt_embs_W), dy.parameter(self.tgt_embs_b)
 			losses = []

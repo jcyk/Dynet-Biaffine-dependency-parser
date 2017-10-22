@@ -80,7 +80,7 @@ class WGANSentParser(object):
 	def trainable_parameter_collection(self):
 		return self._trainable_params
 
-	def run(self, word_inputs, tag_inputs = None, arc_targets = None, rel_targets = None, isTrain = True, critic_scale =0., dep_scale = 0.): 
+	def run(self, word_inputs, tag_inputs = None, arc_targets = None, rel_targets = None, isTrain = True, critic_scale =0., dep_scale = 0., cls = False, domain_id = 0): 
 		# inputs, targets: seq_len x batch_size
 		def dynet_flatten_numpy(ndarray):
 			return np.reshape(ndarray, (-1,), 'F')
@@ -108,8 +108,16 @@ class WGANSentParser(object):
 		W_judge, b_judge = dy.parameter(self.judge_W, update = self.train_critic), dy.parameter(self.judge_b, update = self.train_critic)
 		choice_logits = leaky_relu(dy.affine_transform([b_choice, W_choice, top_recur])) * att_weights
 		in_decisions = dy.affine_transform([b_judge, W_judge, choice_logits])
-		critic_loss = dy.sum_batches(in_decisions) / batch_size
-		self.critic_loss = critic_loss.scalar_value()
+		critic_score = dy.sum_batches(in_decisions) / batch_size
+		
+		tgt = np.full( (batch_size,), domain_id)
+		pred = dy.logistic(in_decisions)
+		critic_loss = dy.sum_batches(dy.binary_log_loss(pred, dy.inputTensor( tgt, batched = True))) / batch_size	
+		acc = np.mean(np.equal(tgt, np.greater(pred.npvalue(), 0.5)).astype(np.float32))
+		if cls:
+			return acc, critic_score.scalar_value(), critic_loss
+		else:
+			self.critic_score = critic_score.scalar_value()
 		
 		if isTrain:
 			top_recur = dy.dropout_dim(top_recur, 1, self.dropout_mlp)
@@ -169,7 +177,7 @@ class WGANSentParser(object):
 		if isTrain or arc_targets is not None:
 			dep_loss = arc_loss + rel_loss
 			self.dep_loss = dep_loss.scalar_value()
-			loss = (dep_scale * dep_loss if dep_scale != 0. else 0. ) + ( critic_scale * critic_loss  if critic_scale != 0. else 0.)
+			loss = (dep_scale * dep_loss if dep_scale != 0. else 0. ) + ( critic_scale * critic_score  if critic_scale != 0. else 0.)
 			correct = rel_correct * dynet_flatten_numpy(arc_correct)
 			overall_accuracy = np.sum(correct) / num_tokens 
 		
