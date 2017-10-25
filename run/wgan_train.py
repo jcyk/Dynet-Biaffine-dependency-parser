@@ -42,13 +42,18 @@ if __name__ == "__main__":
 	epoch = 0
 	best_UAS = 0.
 	history = lambda x, y : open(os.path.join(config.save_dir, 'valid_history'),'a').write('%.2f %.2f\n'%(x,y))
+	
+	parser.set_trainable_flags(train_emb = False, train_lstm = False, train_critic = True, train_score = False)				
 	while global_step < 1000:
 		for _out, _in in data_loader.get_batches(batch_size = config.train_batch_size):
 			for domain, _inputs in enumerate([_out, _in]):
 				words, tags, arcs, rels = _inputs
+				dy.renew_cg()
 				acc, score, loss = parser.run(words, tags, arcs, rels, critic_scale =0., dep_scale = 0., cls = True, domain_id = domain)
 				loss_value = loss.scalar_value()
 				loss.backward()
+				update_parameters()
+				parser.clip_critic(0.1)
 				print acc, score, loss_value
 				
 	global_step = 0
