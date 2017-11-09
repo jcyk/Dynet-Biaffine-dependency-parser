@@ -86,6 +86,7 @@ class DistilltagParser(object):
 		self._pc = pc
 		self._trainable_params = trainable_params
 		self.set_trainable_flags(False, False, False, False)
+		self.train_fixed_lstm = False
 
 	def set_trainable_flags(self, train_emb, train_lstm, train_critic, train_score):
 		self.train_emb = train_emb
@@ -101,7 +102,7 @@ class DistilltagParser(object):
 	def trainable_parameter_collection(self):
 		return self._trainable_params
 
-	def run(self, word_inputs, tag_inputs = None, arc_targets = None, rel_targets = None, isTrain = True, critic_scale =0., dep_scale = 0., tag_scale= 0.): 
+	def run(self, word_inputs, tag_inputs = None, arc_targets = None, rel_targets = None, isTrain = True, critic_scale =0., dep_scale = 0., tag_scale= 0., l2_train = False, pre_train = False): 
 		# inputs, targets: seq_len x batch_size
 		def dynet_flatten_numpy(ndarray):
 			return np.reshape(ndarray, (-1,), 'F')
@@ -116,25 +117,38 @@ class DistilltagParser(object):
 			mask_1D_tensor = dy.inputTensor(mask_1D, batched = True)
 		
 		word_embs = [dy.lookup_batch(self.word_embs, np.where( w<self._vocab.words_in_train, w, self._vocab.UNK), update= self.train_emb) + dy.lookup_batch(self.pret_word_embs, w, update = False) for w in word_inputs]
-		tag_embs = [dy.lookup_batch(self.tag_embs, pos, update = self.train_emb) for pos in tag_inputs]
-		
+		tag_embs = [dy.lookup_batch(self.tag_embs, pos, update = self.train_fixed_lstm) for pos in tag_inputs]
+
 		if isTrain:
 			emb_masks = self.generate_emb_mask(seq_len, batch_size)
 			emb_inputs = [ dy.cmult(w, wm) for w, wm in zip(word_embs, emb_masks)]
 			fb_recur = biLSTM(self.in_LSTM_builders, emb_inputs, batch_size, self.dropout_lstm_input , self.dropout_lstm_hidden, update = self.train_lstm)
+			top_recur = dy.concatenate_cols(fb_recur)
 			
-			if critic_scale != 0.:
-				emb_inputs_tag = [ dy.cmult(dy.concatenate([w, pos]),wm) for w, pos, wm in zip(word_embs,tag_embs,emb_masks)]
-				top_recur_tag = dy.concatenate_cols(biLSTM(self.LSTM_builders, emb_inputs_tag, batch_size, self.dropout_lstm_input, self.dropout_lstm_hidden, update = False))
-				W_choice, b_choice = dy.parameter(self.choice_W, update = self.train_critic), dy.parameter(self.choice_b, update = self.train_critic)
-				W_judge, b_judge = dy.parameter(self.judge_W, update = self.train_critic), dy.parameter(self.judge_b, update = self.train_critic)
+			emb_inputs_tag = [ dy.cmult(dy.concatenate([w, pos]),wm) for w, pos, wm in zip(word_embs,tag_embs,emb_masks)]
+			top_recur_tag = dy.concatenate_cols(biLSTM(self.LSTM_builders, emb_inputs_tag, batch_size, self.dropout_lstm_input, self.dropout_lstm_hidden, update = self.train_fixed_lstm))
+			W_choice, b_choice = dy.parameter(self.choice_W, update = self.train_critic), dy.parameter(self.choice_b, update = self.train_critic)
+			W_judge, b_judge = dy.parameter(self.judge_W, update = self.train_critic), dy.parameter(self.judge_b, update = self.train_critic)
+				
+			if l2_train:
+				l2_loss = dy.sum_batches(dy.squared_distance(top_recur, top_recur_tag))/ (batch_size*seq_len)
+				return l2_loss
+			elif pre_train:
+				critic_scale = 0.
+			else:
 				if self.train_critic:
 					choice_logits = - dy.mean_dim(leaky_relu(dy.affine_transform([b_choice, W_choice, top_recur_tag])), 1)
 				else:
-					choice_logits =  dy.mean_dim(leaky_relu(dy.affine_transform([b_choice, W_choice, top_recur_tag])), 1) - dy.mean_dim(leaky_relu(dy.affine_transform([b_choice, W_choice, top_recur])), 1)
+					a = dy.mean_dim(leaky_relu(dy.affine_transform([b_choice, W_choice, top_recur_tag])), 1)
+					b = dy.mean_dim(leaky_relu(dy.affine_transform([b_choice, W_choice, top_recur])), 1)	
+					choice_logits = a - b
+					a = dy.sum_batches(dy.affine_transform([b_judge, W_judge, a]))/batch_size
+					b = dy.sum_batches(dy.affine_transform([b_judge, W_judge, b]))/batch_size
+					print a.scalar_value(), b.scalar_value()
+
 				in_decisions = dy.affine_transform([b_judge, W_judge, choice_logits])
 				critic_score = dy.sum_batches(in_decisions) / batch_size
-				self.critic_score = critic_score
+				self.critic_score = critic_score.scalar_value()
 
 			if tag_scale != 0.:
 				W_tag, b_tag = dy.parameter(self.tag_embs_W), dy.parameter(self.tag_embs_b)
@@ -143,12 +157,16 @@ class DistilltagParser(object):
 					y = W_tag * h + b_tag
 					losses.append(dy.pickneglogsoftmax_batch(y, tgt) * dy.inputTensor(msk, batched = True))
 				tag_loss = dy.sum_batches(dy.esum(losses)) / num_tokens
-			
-			top_recur = dy.concatenate_cols(fb_recur)
+			if self.train_fixed_lstm:
+				top_recur = top_recur_tag
+			#top_recur = dy.concatenate_cols(fb_recur)
 		else:
-			emb_inputs = word_embs
-			top_recur = dy.concatenate_cols(biLSTM(self.in_LSTM_builders, emb_inputs, batch_size, 0., 0., update = False))
-
+			if self.train_fixed_lstm:
+				emb_inputs = [dy.concatenate([w, pos]) for w, pos in zip(word_embs,tag_embs)]
+				top_recur = dy.concatenate_cols(biLSTM(self.LSTM_builders, emb_inputs, batch_size, 0., 0., update = False))
+			else:
+				emb_inputs = word_embs
+				top_recur = dy.concatenate_cols(biLSTM(self.in_LSTM_builders, emb_inputs, batch_size, 0., 0., update = False))
 		if isTrain:
 			top_recur = dy.dropout_dim(top_recur, 1, self.dropout_mlp)
 
