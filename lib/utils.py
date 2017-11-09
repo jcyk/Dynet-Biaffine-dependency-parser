@@ -4,6 +4,9 @@ import numpy as np
 from data import Vocab
 from tarjan import Tarjan
 
+def softplus(x):
+	return dy.log(dy.exp(x) + 1.)
+
 def orthonormal_VanillaLSTMBuilder(lstm_layers, input_dims, lstm_hiddens, pc, randn_init = False):
 	builder = dy.CompactVanillaLSTMBuilder(lstm_layers, input_dims, lstm_hiddens, pc)
 	for layer, params in enumerate(builder.get_parameters()):

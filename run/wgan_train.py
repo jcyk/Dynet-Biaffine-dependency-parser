@@ -15,7 +15,7 @@ if __name__ == "__main__":
 	argparser.add_argument('--config_file', default='../configs/sent.cfg')
 	argparser.add_argument('--in_domain_file', default='../../result0123')
 	argparser.add_argument('--model', default='WGANSentParser')
-	argparser.add_argument('--baseline_path', default='../ckpt/sota')
+	argparser.add_argument('--baseline_path', default='../ckpt/w2w')
 	argparser.add_argument('--critic_scale', type=float, default = 1.)
 	argparser.add_argument('--ncritic', type=int, default = 5)
 
@@ -44,7 +44,7 @@ if __name__ == "__main__":
 	history = lambda x, y : open(os.path.join(config.save_dir, 'valid_history'),'a').write('%.2f %.2f\n'%(x,y))
 	
 	parser.set_trainable_flags(train_emb = False, train_lstm = False, train_critic = True, train_score = False)				
-	while global_step < 1000:
+	while global_step < 5:
 		for _out, _in in data_loader.get_batches(batch_size = config.train_batch_size):
 			for domain, _inputs in enumerate([_out, _in]):
 				words, tags, arcs, rels = _inputs
@@ -55,7 +55,7 @@ if __name__ == "__main__":
 				update_parameters()
 				parser.clip_critic(0.1)
 				print acc, score, loss_value
-				
+		global_step += 1			
 	global_step = 0
 	while global_step < config.train_iters:
 		print time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), '\nStart training epoch #%d'%(epoch, )
