@@ -1,11 +1,11 @@
-# -*- coding: UTF-8 -*-
+#java edu.stanford.nlp.parser.nndep.DependencyParser -model modelOutputFile.txt.gz -textFile rawTextToParse -outFile dependenciesOutputFile.txi -*- coding: UTF-8 -*-
 from __future__ import division
 import dynet as dy
 import numpy as np
 
 from lib import biLSTM, leaky_relu, bilinear, orthonormal_initializer, arc_argmax, rel_argmax, orthonormal_VanillaLSTMBuilder, softplus
 
-class NotagParser(object):
+class VAEParser(object):
 	def __init__(self, vocab,
 					   word_dims,
 					   dropout_emb,
@@ -37,6 +37,12 @@ class NotagParser(object):
 
 		mlp_size = mlp_arc_size+mlp_rel_size
 		self.mlp_size = mlp_size
+		#self.hW = pc.parameters_from_numpy(orthonormal_initializer(2*lstm_hiddens, 2*lstm_hiddens, randn_init))
+		#self.hb = pc.add_parameters((2*lstm_hiddens,), init = dy.ConstInitializer(0.))
+		self.rhW = pc.parameters_from_numpy(orthonormal_initializer(mlp_size, mlp_size, randn_init))
+		self.rhb = pc.add_parameters((mlp_size,), init = dy.ConstInitializer(0.))
+		self.rdW = pc.parameters_from_numpy(orthonormal_initializer(mlp_size, mlp_size, randn_init))
+                self.rdb = pc.add_parameters((mlp_size,), init = dy.ConstInitializer(0.))
 		W = orthonormal_initializer(mlp_size, 2*lstm_hiddens, randn_init)
 		self.mlp_dep_Wm = pc.parameters_from_numpy(W)
 		self.mlp_head_Wm = pc.parameters_from_numpy(W)
@@ -93,32 +99,40 @@ class NotagParser(object):
 		if isTrain:
 			top_recur = dy.dropout_dim(top_recur, 1, self.dropout_mlp)
 
+		#Wh = dy.parameter(self.hW)
+		#bh = dy.parameter(self.hb)
+		#top_recur = dy.logistic(dy.affine_transform([bh, Wh, top_recur]))
 		Wm_dep, bm_dep = dy.parameter(self.mlp_dep_Wm), dy.parameter(self.mlp_dep_bm)
 		Wm_head, bm_head = dy.parameter(self.mlp_head_Wm), dy.parameter(self.mlp_head_bm)
-		dep_m, head_m = leaky_relu(dy.affine_transform([bm_dep, Wm_dep, top_recur])),leaky_relu(dy.affine_transform([bm_head, Wm_head, top_recur]))
+		dep_m, head_m = dy.affine_transform([bm_dep, Wm_dep, top_recur]), dy.affine_transform([bm_head, Wm_head, top_recur])
 		
 		if isTrain:
 			Wv_dep, bv_dep = dy.parameter(self.mlp_dep_Wv), dy.parameter(self.mlp_dep_bv)
 			Wv_head, bv_head = dy.parameter(self.mlp_head_Wv), dy.parameter(self.mlp_head_bv)
-			dep_v, head_v = softplus(dy.affine_transform([bv_dep, Wv_dep, top_recur])), softplus(dy.affine_transform([bv_head, Wv_head, top_recur]))
-		
-			eps = dy.random_normal(self.mlp_size)
+			dep_v, head_v = softplus(dy.affine_transform([bv_dep, Wv_dep, top_recur])),  softplus(dy.affine_transform([bv_head, Wv_head, top_recur]))
+	
+			#print dep_v.npvalue(), head_v.npvalue()	
+			eps = dy.random_normal((self.mlp_size, seq_len), batch_size)
 			dep = dep_m + dy.cmult(dy.sqrt(dep_v), eps)
 
-			eps = dy.random_normal(self.mlp_size)
+			eps = dy.random_normal((self.mlp_size, seq_len), batch_size)
 			head = head_m + dy.cmult(dy.sqrt(head_v), eps)
 
-			KL_dep = -0.5*dy.sum_dim(1 + dy.log(dep_v + 1e-6) - dy.square(dep_m) - dep_v, 0)
-			KL_head = -0.5*dy.sum_dim(1 + dy.log(head_v + 1e-6) - dy.square(head_m) - head_v, 0)
+			KL_dep = -0.5*dy.sum_dim(1 + dy.log(dep_v + 1e-6) - dy.square(dep_m) - dep_v, [0])
+			KL_head = -0.5*dy.sum_dim(1 + dy.log(head_v + 1e-6) - dy.square(head_m) - head_v, [0])
 			KL_loss = dy.sum_batches( dy.reshape(KL_dep + KL_head, (1,), seq_len*batch_size) * mask_1D_tensor) / num_tokens
-
+			#print KL_loss.scalar_value(),' '
 		else:
 			dep = dep_m
 			head = head_m
 
 		#if isTrain:
 		#	dep, head= dy.dropout_dim(dep, 1, self.dropout_mlp), dy.dropout_dim(head, 1, self.dropout_mlp)
+		Wrd, brd =dy.parameter(self.rdW),dy.parameter(self.rdb)
+		Wrh, brh = dy.parameter(self.rhW), dy.parameter(self.rhb)
 		
+		dep = leaky_relu(dy.affine_transform([brd, Wrd, dep]))
+		head = leaky_relu(dy.affine_transform([brh, Wrh, head]))		
 		dep_arc, dep_rel = dep[:self.mlp_arc_size], dep[self.mlp_arc_size:]
 		head_arc, head_rel = head[:self.mlp_arc_size], head[self.mlp_arc_size:]
 
@@ -166,7 +180,7 @@ class NotagParser(object):
 			# batch_size x #dep x #head x #nclasses
 	
 		if isTrain or arc_targets is not None:
-			loss = arc_loss + rel_loss + KL_loss
+			loss = arc_loss + rel_loss #+ KL_loss
 			correct = rel_correct * dynet_flatten_numpy(arc_correct)
 			overall_accuracy = np.sum(correct) / num_tokens 
 		
