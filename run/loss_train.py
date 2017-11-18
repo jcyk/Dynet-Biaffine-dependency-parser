@@ -15,9 +15,8 @@ if __name__ == "__main__":
 	argparser.add_argument('--config_file', default='../configs/norm.cfg')
 	argparser.add_argument('--in_domain_file', default='../../result0123')
 	argparser.add_argument('--model', default='LossParser')
-	#argparser.add_argument('--baseline_path', default='../ckpt/sota')
 	argparser.add_argument('--critic_scale', type=float, default = 0.)
-	argparser.add_argument('--lm_scale', type=float, default = 0.)
+	argparser.add_argument('--lm_scale', type=float, default = 0.01)
 	argparser.add_argument('--tag_scale', type=float, default = 0.)
 	argparser.add_argument('--ncritic', type=int, default = 0)
 
@@ -26,11 +25,9 @@ if __name__ == "__main__":
 	Parser = getattr(models, args.model)
 
 	vocab = Vocab(config.train_file, config.pretrained_embeddings_file, config.min_occur_count)
-	#vocab = cPickle.load(open(os.path.join(args.baseline_path,'vocab')))
 	cPickle.dump(vocab, open(config.save_vocab_path, 'w'))
 	parser = Parser(vocab, config.word_dims, config.tag_dims, config.dropout_emb, config.lstm_layers, config.lstm_hiddens, config.dropout_lstm_input, config.dropout_lstm_hidden, config.mlp_arc_size, config.mlp_rel_size, config.dropout_mlp, config.choice_size)
-	#parser.initialize(os.path.join(args.baseline_path,'model'))
-	pc = parser.all_parameter_collection
+	pc = parser.parameter_collection
 	
 	data_loader = MixedDataLoader([config.train_file, args.in_domain_file], [1., 1.], config.num_buckets_train, vocab)
 	trainer = dy.AdamTrainer(pc, config.learning_rate, config.beta_1, config.beta_2, config.epsilon)
@@ -53,7 +50,7 @@ if __name__ == "__main__":
 				dy.renew_cg()
 				if inner_step % (args.ncritic + 1) == 0:
 					parser.set_trainable_flags(train_emb = False, train_lstm = True, train_critic = False, train_score = True)
-					arc_accuracy, rel_accuracy, overall_accuracy, loss = parser.run(words, tags, arcs, rels, critic_scale = (args.critic_scale if domain ==0 else -args.critic_scale), dep_scale = (1. if domain ==0 else 0. ), lm_scale = (args.lm_scale if global_step < 20000 else 0.), tag_scale = (args.tag_scale  if domain ==0 else 0. ))
+					arc_accuracy, rel_accuracy, overall_accuracy, loss = parser.run(words, tags, arcs, rels, critic_scale = (args.critic_scale if domain ==0 else -args.critic_scale), dep_scale = (1. if domain ==0 else 0. ), lm_scale = (args.lm_scale if global_step < 10000 else 0.), tag_scale = (args.tag_scale  if domain ==0 else 0. ))
 				else:
 					parser.set_trainable_flags(train_emb = False, train_lstm = False, train_critic = True, train_score = False)
 					arc_accuracy, rel_accuracy, overall_accuracy, loss = parser.run(words, tags, arcs, rels, critic_scale = (-args.critic_scale if domain ==0 else 0.), dep_scale = 0.)	
