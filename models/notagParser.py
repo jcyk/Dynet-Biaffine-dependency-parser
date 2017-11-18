@@ -50,10 +50,9 @@ class NotagParser(object):
 
 		self._pc = pc
 		self.dropout_emb = dropout_emb
-		self.fixed_word_emb = False
-		self.use_pret = True
+		self.train_emb = False
 
-	@property 
+	@property
 	def parameter_collection(self):
 		return self._pc
 
@@ -71,14 +70,8 @@ class NotagParser(object):
 			mask_1D = dynet_flatten_numpy(mask)
 			mask_1D_tensor = dy.inputTensor(mask_1D, batched = True)
 		
-		if not self.use_pret:
-			word_embs = [dy.lookup_batch(self.word_embs, np.where( w<self._vocab.words_in_train, w, self._vocab.UNK)) for w in word_inputs ]
-		else:
-			if self.fixed_word_emb:
-				word_embs = [dy.lookup_batch(self.pret_word_embs, w, update = False) for w in word_inputs ]
-			else:
-				word_embs = [dy.lookup_batch(self.word_embs, np.where( w<self._vocab.words_in_train, w, self._vocab.UNK)) + dy.lookup_batch(self.pret_word_embs, w, update = False) for w in word_inputs]
-		
+		word_embs = [ dy.lookup_batch(self.word_embs, np.where( w<self._vocab.words_in_train, w, self._vocab.UNK), update = self.train_emb) + dy.lookup_batch(self.pret_word_embs, w, update = False) for w in word_inputs ]
+
 		if isTrain:
 			word_embs= [ dy.dropout_dim(w, 0, self.dropout_emb) for w in word_embs]
 
@@ -117,8 +110,6 @@ class NotagParser(object):
 			# #batch_size x #dep x #head
 
 		W_rel = dy.parameter(self.rel_W)
-		#dep_rel = dy.concatenate([dep_rel, dy.inputTensor(np.ones((1, seq_len),dtype=np.float32))])
-		#head_rel = dy.concatenate([head_rel, dy.inputTensor(np.ones((1, seq_len), dtype=np.float32))])
 		rel_logits = bilinear(dep_rel, W_rel, head_rel, self.mlp_rel_size, seq_len, batch_size, num_outputs = self._vocab.rel_size, bias_x = True, bias_y = True)
 		# (#head x rel_size x #dep) x batch_size
 		

@@ -3,7 +3,7 @@ from __future__ import division
 import dynet as dy
 import numpy as np
 
-from lib import biLSTM, uniLSTM, leaky_relu, bilinear, orthonormal_initializer, arc_argmax, rel_argmax, orthonormal_VanillaLSTMBuilder
+from lib import biLSTM, leaky_relu, bilinear, orthonormal_initializer, arc_argmax, rel_argmax, orthonormal_VanillaLSTMBuilder
 
 class LossParser(object):
 	def __init__(self, vocab,
@@ -21,18 +21,13 @@ class LossParser(object):
 					   randn_init = False
 					   ):
 
-		all_params = dy.ParameterCollection()
-		pc = all_params.add_subcollection()
-		trainable_params = all_params.add_subcollection()
+		pc = dy.ParameterCollection()
 
 		self._vocab = vocab
 		self.word_embs = pc.lookup_parameters_from_numpy(vocab.get_word_embs(word_dims))
 		self.pret_word_embs = pc.lookup_parameters_from_numpy(vocab.get_pret_embs())
 
-		self.dropout_emb = dropout_emb
-		self.lstm_hiddens = lstm_hiddens
 		self.LSTM_builders = []
-
 		f = orthonormal_VanillaLSTMBuilder(1, word_dims, lstm_hiddens, pc, randn_init)
 		b = orthonormal_VanillaLSTMBuilder(1, word_dims, lstm_hiddens, pc, randn_init)
 		self.LSTM_builders.append((f,b))
@@ -57,22 +52,22 @@ class LossParser(object):
 		self.arc_W = pc.add_parameters((mlp_arc_size, mlp_arc_size + 1), init = dy.ConstInitializer(0.))
 		self.rel_W = pc.add_parameters((vocab.rel_size*(mlp_rel_size +1) , mlp_rel_size + 1), init = dy.ConstInitializer(0.))
 
-		self.att_W = trainable_params.parameters_from_numpy(orthonormal_initializer(1, 2*lstm_hiddens))
-		self.choice_W = trainable_params.parameters_from_numpy(orthonormal_initializer(choice_size, 2*lstm_hiddens))
-		self.choice_b = trainable_params.add_parameters((choice_size,), init = dy.ConstInitializer(0.))
-		self.judge_W = trainable_params.add_parameters((1, choice_size), init = dy.ConstInitializer(0.))
-		self.judge_b = trainable_params.add_parameters((1,), init = dy.ConstInitializer(0.))
+		self.att_W = pc.parameters_from_numpy(orthonormal_initializer(1, 2*lstm_hiddens))
+		self.choice_W = pc.parameters_from_numpy(orthonormal_initializer(choice_size, 2*lstm_hiddens))
+		self.choice_b = pc.add_parameters((choice_size,), init = dy.ConstInitializer(0.))
+		self.judge_W = pc.add_parameters((1, choice_size), init = dy.ConstInitializer(0.))
+		self.judge_b = pc.add_parameters((1,), init = dy.ConstInitializer(0.))
 
 		self._critic_params = [self.att_W, self.choice_W, self.choice_b, self.judge_W, self.judge_b]
 
-		self.tgt_embs_W = trainable_params.add_parameters((vocab.vocab_size, lstm_hiddens))
-		self.tgt_embs_b = trainable_params.add_parameters((vocab.vocab_size,), init = dy.ConstInitializer(0.))
-		self.tag_embs_W = trainable_params.add_parameters((vocab.tag_size, 2*lstm_hiddens))
-		self.tag_embs_b = trainable_params.add_parameters(vocab.tag_size, init = dy.ConstInitializer(0.))
+		self.tgt_embs_W = pc.add_parameters((vocab.vocab_size, lstm_hiddens))
+		self.tgt_embs_b = pc.add_parameters((vocab.vocab_size,), init = dy.ConstInitializer(0.))
+		self.tag_embs_W = pc.add_parameters((vocab.tag_size, 2*lstm_hiddens))
+		self.tag_embs_b = pc.add_parameters(vocab.tag_size, init = dy.ConstInitializer(0.))
 
-		self._all_params = all_params
 		self._pc = pc
-		self._trainable_params = trainable_params
+		self.dropout_emb = dropout_emb
+		self.lstm_hiddens = lstm_hiddens
 		self.set_trainable_flags(False, False, False, False)
 
 	def set_trainable_flags(self, train_emb, train_lstm, train_critic, train_score):
@@ -82,12 +77,8 @@ class LossParser(object):
 		self.train_score = train_score
 
 	@property
-	def all_parameter_collection(self):
-		return self._all_params
-
-	@property 
-	def trainable_parameter_collection(self):
-		return self._trainable_params
+	def parameter_collection(self):
+		return self._pc
 
 	def run(self, word_inputs, tag_inputs = None, arc_targets = None, rel_targets = None, isTrain = True, critic_scale =0., dep_scale = 0., lm_scale= 0., tag_scale = 0.): 
 		# inputs, targets: seq_len x batch_size
@@ -103,7 +94,7 @@ class LossParser(object):
 			mask_1D = dynet_flatten_numpy(mask)
 			mask_1D_tensor = dy.inputTensor(mask_1D, batched = True)
 		
-		word_embs = [dy.lookup_batch(self.word_embs, np.where( w<self._vocab.words_in_train, w, self._vocab.UNK), update= self.train_emb) + dy.lookup_batch(self.pret_word_embs, w, update = False) for w in word_inputs]
+		word_embs = [ dy.lookup_batch(self.word_embs, np.where( w<self._vocab.words_in_train, w, self._vocab.UNK), update = self.train_emb) + dy.lookup_batch(self.pret_word_embs, w, update = False) for w in word_inputs ]
 		
 		if isTrain:
 			word_embs= [ dy.dropout_dim(w, 0, self.dropout_emb) for w in word_embs]
@@ -139,10 +130,11 @@ class LossParser(object):
 			self.tag_loss = tag_loss.scalar_value()
 
 		if critic_scale != 0.:
-			W_att = dy.parameter(self.att_W, update = self.train_critic)
+			critic_parameter =  dy.parameter if self.train_critic else dy.const_parameter
+			W_att = critic_parameter(self.att_W)
 			att_weights = dy.softmax(dy.reshape(W_att * top_recur,(seq_len,), batch_size))
-			W_choice, b_choice = dy.parameter(self.choice_W, update = self.train_critic), dy.parameter(self.choice_b, update = self.train_critic)
-			W_judge, b_judge = dy.parameter(self.judge_W, update = self.train_critic), dy.parameter(self.judge_b, update = self.train_critic)
+			W_choice, b_choice = critic_parameter(self.choice_W), critic_parameter(self.choice_b)
+			W_judge, b_judge = critic_parameter(self.judge_W), critic_parameter(self.judge_b)
 			choice_logits = leaky_relu(dy.affine_transform([b_choice, W_choice, top_recur])) * att_weights
 			in_decisions = dy.affine_transform([b_judge, W_judge, choice_logits])
 			critic_loss = dy.sum_batches(in_decisions) / batch_size
@@ -151,8 +143,9 @@ class LossParser(object):
 		if isTrain:
 			top_recur = dy.dropout_dim(top_recur, 1, self.dropout_mlp)
 
-		W_dep, b_dep = dy.parameter(self.mlp_dep_W, update = self.train_score), dy.parameter(self.mlp_dep_b, update = self.train_score)
-		W_head, b_head = dy.parameter(self.mlp_head_W, update = self.train_score), dy.parameter(self.mlp_head_b, update = self.train_score)
+		score_parameter = dy.parameter if self.train_score else dy.const_parameter
+		W_dep, b_dep = score_parameter(self.mlp_dep_W), score_parameter(self.mlp_dep_b)
+		W_head, b_head = score_parameter(self.mlp_head_W), score_parameter(self.mlp_head_b)
 		dep, head = leaky_relu(dy.affine_transform([b_dep, W_dep, top_recur])),leaky_relu(dy.affine_transform([b_head, W_head, top_recur]))
 		if isTrain:
 			dep, head= dy.dropout_dim(dep, 1, self.dropout_mlp), dy.dropout_dim(head, 1, self.dropout_mlp)
@@ -160,7 +153,7 @@ class LossParser(object):
 		dep_arc, dep_rel = dep[:self.mlp_arc_size], dep[self.mlp_arc_size:]
 		head_arc, head_rel = head[:self.mlp_arc_size], head[self.mlp_arc_size:]
 
-		W_arc = dy.parameter(self.arc_W, update = self.train_score)
+		W_arc = score_parameter(self.arc_W)
 		arc_logits = bilinear(dep_arc, W_arc, head_arc, self.mlp_arc_size, seq_len, batch_size, num_outputs= 1, bias_x = True, bias_y = False)
 		# (#head x #dep) x batch_size
 		
@@ -181,7 +174,7 @@ class LossParser(object):
 			arc_probs = np.transpose(np.reshape(dy.softmax(flat_arc_logits).npvalue(), (seq_len, seq_len, batch_size), 'F'))
 			# #batch_size x #dep x #head
 
-		W_rel = dy.parameter(self.rel_W, update = self.train_score)
+		W_rel = score_parameter(self.rel_W)
 		rel_logits = bilinear(dep_rel, W_rel, head_rel, self.mlp_rel_size, seq_len, batch_size, num_outputs = self._vocab.rel_size, bias_x = True, bias_y = True)
 		# (#head x rel_size x #dep) x batch_size
 		
@@ -227,14 +220,11 @@ class LossParser(object):
 		if arc_targets is not None:
 			return arc_accuracy, rel_accuracy, overall_accuracy, outputs
 		return outputs
-
-	def initialize(self, baseline_params):
-		self._pc.populate(baseline_params)
 		
 	def clip_critic(self, range_value):
 		for param in self._critic_params:
 			param.clip_inplace(-range_value, range_value)
 	def save(self, save_path):
-		self._all_params.save(save_path)
+		self._pc.save(save_path)
 	def load(self, load_path):
-		self._all_params.populate(load_path)
+		self._pc.populate(load_path)
