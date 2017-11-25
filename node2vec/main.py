@@ -45,6 +45,7 @@ def parse_args():
 
 ROOT = '<root>'
 EOD = '<eod>'
+UNK = '<unk>'
 def update_graph(graph, fname):
 	nsents = 0
 	sent = [[ROOT, ROOT, 0, ROOT]]
@@ -52,24 +53,16 @@ def update_graph(graph, fname):
 		info = line.strip().split()
 		if info:
 			assert(len(info)==10), 'Illegal line: %s'%line
-			word, tag, head, rel = info[1].lower(), info[3], int(info[6]), info[7]
+			word, tag, head, rel, prob = info[1].lower(), info[3], int(info[6]), info[7], float(info[5]) if info[5]!='_' else 1.
 			sent.append([word, tag, head, rel])
 		else:
-			for idx, (word, tag, head, rel) in enumerate(sent[1:],1):
-				depth = 1
-				h = head
-				while h!=0:
-					h = sent[h][2]
-					depth +=1
 			nsents += 1
-			head_set = set([ head for word, _, head, _ in sent[1:]])
+			head_set = set([ head for word, _, head, _, _ in sent[1:]])
 			for head in xrange(len(sent)):
 				if head not in head_set:
 					graph[(sent[head][0],EOD)] += 1
-			#for word, _, head, _ in sent[1:]:
-			#	if word in string.punctuation:
-			#		print sent[head][0]
-			graph.update([(sent[head][0], word) for word, _, head, _ in sent[1:]])
+			for word, _, head, _, prob in sent[1:]:
+				graph[(sent[head][0], word)] += prob
 			sent = [[ROOT, ROOT, 0, ROOT]]
 	return nsents
 
@@ -80,7 +73,7 @@ def read_graph(file_list):
 		nsents += update_graph(graph, fname)
 	print 'number of sentences', nsents
 	u, v, w = [], [], []
-	vocab = set()
+	vocab = Counter()
 	for edge in graph:
 		if edge[0] in string.punctuation or edge[1] in string.punctuation:
 			continue
@@ -88,12 +81,12 @@ def read_graph(file_list):
 			u.append(edge[0])
 			v.append(edge[1])
 			w.append(graph[edge])
-			vocab.add(edge[0])
-			vocab.add(edge[1])
-	id2word = list(vocab)
+			vocab[edge[0]]+=1
+			vocab[edge[1]]+=1
+	id2word = [UNK]+[for word in vocab if vocab[word]>=5]
 	word2id = dict(zip(id2word,range(len(id2word))))
-	u = [word2id[x] for x in u]
-	v = [word2id[x] for x in v]
+	u = [word2id.get(x, 0) for x in u]
+	v = [word2id.get(x, 0) for x in v]
 	G = PyGraph(u, v, w)
 	return G, id2word, word2id, nsents
 

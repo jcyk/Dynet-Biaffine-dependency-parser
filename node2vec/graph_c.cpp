@@ -1,4 +1,5 @@
 #include "graph_c.h"
+#include "assert.h"
 #include <algorithm>
 #include <unordered_set>
 #include <random>
@@ -44,9 +45,11 @@ void Graph::preprocess()
 		probs.clear();
 		smaller.clear();
 		larger.clear();
-		J.resize(out_edge[u].size());
-		q.resize(out_edge[u].size());
-		for(int i=0; i<out_edge[u].size();i++){
+		int K = out_edge[u].size();
+
+		J.resize(K);
+		q.resize(K);
+		for(int i=0; i< K;i++){
 			J[i] = 0;
 			q[i] = 0;
 		}
@@ -54,22 +57,6 @@ void Graph::preprocess()
 			probs.push_back(weights[(long long)u<<31|v]);
 		}
 		norm(probs);
-
-		/*vector<float> in_probs;
-		int tmp = 0;
-		for(int i = 0;i < out_edge[u].size();i++){
-			int v = out_edge[u][i];
-			for(int j =0; j< in_edge[v].size();j++){
-				int w = in_edge[v][j];
-				if (w == u) tmp = j;
-				in_probs.push_back(weights[(long long)w<<31|v]);
-			}
-			norm(in_probs);
-			probs[i] /= pow(in_probs[tmp], 2);
-		}
-		norm(probs);*/
-
-		int K = probs.size();
 		for(int i =0;i<K;i++){
 			q[i] = K*probs[i];
 			if (q[i]<1.)
@@ -106,11 +93,15 @@ vector<int> Graph::walk(int start_node, int walk_length){
 	res.push_back(start_node);
 	int cur = start_node;
 	while (res.size()<walk_length){
+		assert (cur < out_edge.size());
 		if (out_edge[cur].size() == 0) break;
+		assert (cur < JJ[cur].size());
 		int kk = rand01()*JJ[cur].size();
+		assert (cur < qq.size() &&kk<qq[cur].size());
 		if (rand01()<qq[cur][kk])
 			cur = out_edge[cur][kk];
 		else
+			assert ( cur <JJ.size() && kk < JJ[cur].size() && JJ[cur][kk] < out_edge[cur].size());
 			cur = out_edge[cur][JJ[cur][kk]];
 		res.push_back(cur);
 	}

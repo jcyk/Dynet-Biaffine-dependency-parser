@@ -29,9 +29,10 @@ def test(parser, vocab, num_buckets_test, test_batch_size, test_file, output_fil
 
     arcs, rels = [], []
     for result in results:
-        for x, y in zip(result[0], result[1]):
+        for x, y, z in zip(result[0], result[1], result[2]):
             arcs.append(x)
             rels.append(y)
+            probs.append(z)
     idx = 0
     with open(test_file) as f:
         with open(output_file, 'w') as fo:
@@ -39,6 +40,7 @@ def test(parser, vocab, num_buckets_test, test_batch_size, test_file, output_fil
                 info = line.strip().split()
                 if info:
                     assert len(info) == 10, 'Illegal line: %s' % line
+                    info[5] = str(probs[idx])
                     info[6] = str(arcs[idx])
                     info[7] = vocab.id2rel(rels[idx])
                     fo.write('\t'.join(info) + '\n')
