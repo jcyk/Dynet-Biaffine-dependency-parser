@@ -54,7 +54,7 @@ def update_graph(graph, fname):
 		if info:
 			assert(len(info)==10), 'Illegal line: %s'%line
 			word, tag, head, rel, prob = info[1].lower(), info[3], int(info[6]), info[7], float(info[5]) if info[5]!='_' else 1.
-			sent.append([word, tag, head, rel])
+			sent.append([word, tag, head, rel, prob])
 		else:
 			nsents += 1
 			head_set = set([ head for word, _, head, _, _ in sent[1:]])
@@ -83,7 +83,7 @@ def read_graph(file_list):
 			w.append(graph[edge])
 			vocab[edge[0]]+=1
 			vocab[edge[1]]+=1
-	id2word = [UNK]+[for word in vocab if vocab[word]>=5]
+	id2word = [UNK]+[word for word in vocab if vocab[word]>=5]
 	word2id = dict(zip(id2word,range(len(id2word))))
 	u = [word2id.get(x, 0) for x in u]
 	v = [word2id.get(x, 0) for x in v]
