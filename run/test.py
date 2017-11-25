@@ -74,9 +74,10 @@ def raw_test(parser, vocab, num_buckets_test, test_batch_size, test_file, output
     print 'Finishing'
     arcs, rels = [], []
     for result in results:
-        for x, y in zip(result[0], result[1]):
+        for x, y, z in zip(result[0], result[1], result[2]):
             arcs.append(x)
             rels.append(y)
+            probs.append(z)
     idx = 0
     word_idx = 1
     output_info = ['_'] *10
@@ -88,6 +89,7 @@ def raw_test(parser, vocab, num_buckets_test, test_batch_size, test_file, output
                     assert len(info) == 2, 'Illegal line: %s' % line
                     output_info[0] = str(word_idx)
                     output_info[1], output_info[3] = info[0], info[1]
+                    output_info[5] = str(probs[idx])
                     output_info[6] = str(arcs[idx])
                     output_info[7] = vocab.id2rel(rels[idx])
                     fo.write('\t'.join(output_info) + '\n')

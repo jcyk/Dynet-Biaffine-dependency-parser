@@ -1,5 +1,4 @@
 #include "graph_c.h"
-#include "assert.h"
 #include <algorithm>
 #include <unordered_set>
 #include <random>
@@ -93,15 +92,12 @@ vector<int> Graph::walk(int start_node, int walk_length){
 	res.push_back(start_node);
 	int cur = start_node;
 	while (res.size()<walk_length){
-		assert (cur < out_edge.size());
 		if (out_edge[cur].size() == 0) break;
-		assert (cur < JJ[cur].size());
 		int kk = rand01()*JJ[cur].size();
-		assert (cur < qq.size() &&kk<qq[cur].size());
+		kk = max(kk, JJ[cur].size()-1);
 		if (rand01()<qq[cur][kk])
 			cur = out_edge[cur][kk];
 		else
-			assert ( cur <JJ.size() && kk < JJ[cur].size() && JJ[cur][kk] < out_edge[cur].size());
 			cur = out_edge[cur][JJ[cur][kk]];
 		res.push_back(cur);
 	}
