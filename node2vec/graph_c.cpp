@@ -3,6 +3,7 @@
 #include <unordered_set>
 #include <random>
 #include <iostream>
+#include <math.h>
 using namespace std;
 
 Graph::Graph() {}
@@ -24,6 +25,14 @@ Graph::Graph(vector<int> u, vector<int> v, vector<float> w)
 
 Graph::~Graph() {}
 
+void norm(vector<float>& vec)
+{
+	float tot = 0.;
+	for(float x : vec)
+		tot += x;
+	for(float& x: vec)
+		x/=tot;
+}
 void Graph::preprocess()
 {
 	vector<float> probs;
@@ -44,11 +53,22 @@ void Graph::preprocess()
 		for(int v : out_edge[u]){
 			probs.push_back(weights[(long long)u<<31|v]);
 		}
-		float tot = 0.;
-		for(float x : probs)
-			tot+= x;
-		for(float& x:probs)
-			x/=tot;
+		norm(probs);
+
+		/*vector<float> in_probs;
+		int tmp = 0;
+		for(int i = 0;i < out_edge[u].size();i++){
+			int v = out_edge[u][i];
+			for(int j =0; j< in_edge[v].size();j++){
+				int w = in_edge[v][j];
+				if (w == u) tmp = j;
+				in_probs.push_back(weights[(long long)w<<31|v]);
+			}
+			norm(in_probs);
+			probs[i] /= pow(in_probs[tmp], 2);
+		}
+		norm(probs);*/
+
 		int K = probs.size();
 		for(int i =0;i<K;i++){
 			q[i] = K*probs[i];

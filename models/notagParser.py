@@ -50,7 +50,8 @@ class NotagParser(object):
 
 		self._pc = pc
 		self.dropout_emb = dropout_emb
-		self.train_emb = False
+		self.fixed_word_emb = True
+ 		self.use_pret = True
 
 	@property
 	def parameter_collection(self):
@@ -70,8 +71,14 @@ class NotagParser(object):
 			mask_1D = dynet_flatten_numpy(mask)
 			mask_1D_tensor = dy.inputTensor(mask_1D, batched = True)
 		
-		word_embs = [ dy.lookup_batch(self.word_embs, np.where( w<self._vocab.words_in_train, w, self._vocab.UNK), update = self.train_emb) + dy.lookup_batch(self.pret_word_embs, w, update = False) for w in word_inputs ]
-
+		if not self.use_pret:
+			word_embs = [dy.lookup_batch(self.word_embs, np.where( w<self._vocab.words_in_train, w, self._vocab.UNK)) for w in word_inputs ]
+		else:
+			if self.fixed_word_emb:
+				word_embs = [dy.lookup_batch(self.pret_word_embs, w, update = False) for w in word_inputs ]
+			else:
+				word_embs = [dy.lookup_batch(self.word_embs, np.where( w<self._vocab.words_in_train, w, self._vocab.UNK)) + dy.lookup_batch(self.pret_word_embs, w, update = False) for w in word_inputs]
+		
 		if isTrain:
 			word_embs= [ dy.dropout_dim(w, 0, self.dropout_emb) for w in word_embs]
 
@@ -141,17 +148,24 @@ class NotagParser(object):
 		
 		outputs = []
 		
+		#xxx = 0
+		#history = lambda x, y : open('domybest','a').write('%.2f %.2f\n'%(x,y))
 		for msk, arc_prob, rel_prob in zip(np.transpose(mask), arc_probs, rel_probs):
 			# parse sentences one by one
 			msk[0] = 1.
 			sent_len = int(np.sum(msk))
+			#for i in xrange(sent_len):
+			#	for j in xrange(sent_len):
+			#		if j == arc_targets[i][xxx]:
+			#			history(arc_prob[i][j], 1)
+			#		else:
+			#			history(arc_prob[i][j], 0)
+			#xxx += 1
 			arc_pred = arc_argmax(arc_prob, sent_len, msk)
 			rel_prob = rel_prob[np.arange(len(arc_pred)),arc_pred]
 			rel_pred = rel_argmax(rel_prob, sent_len)
 			outputs.append((arc_pred[1:sent_len], rel_pred[1:sent_len]))
-		
-		if arc_targets is not None:
-			return arc_accuracy, rel_accuracy, overall_accuracy, outputs
+
 		return outputs
 
 	def save(self, save_path):

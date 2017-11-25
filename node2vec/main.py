@@ -3,7 +3,7 @@ import numpy as np
 from graph import PyGraph
 import gensim
 from collections import Counter
-import sys, random
+import sys, random, string
 
 def parse_args():
 	'''
@@ -65,7 +65,10 @@ def update_graph(graph, fname):
 			head_set = set([ head for word, _, head, _ in sent[1:]])
 			for head in xrange(len(sent)):
 				if head not in head_set:
-					graph[(sent[head][0],EOD)] += 1 
+					graph[(sent[head][0],EOD)] += 1
+			#for word, _, head, _ in sent[1:]:
+			#	if word in string.punctuation:
+			#		print sent[head][0]
 			graph.update([(sent[head][0], word) for word, _, head, _ in sent[1:]])
 			sent = [[ROOT, ROOT, 0, ROOT]]
 	return nsents
@@ -79,6 +82,8 @@ def read_graph(file_list):
 	u, v, w = [], [], []
 	vocab = set()
 	for edge in graph:
+		if edge[0] in string.punctuation or edge[1] in string.punctuation:
+			continue
 		if graph[edge] >=3:
 			u.append(edge[0])
 			v.append(edge[1])
@@ -103,9 +108,8 @@ class Simulate_walks(object):
 	def __iter__(self):
 		node = self.word2id[ROOT]
 		for walk_iter in range(self.num_walks):
-			
 			out = [ self.id2word[x] for x in self.G.walk(start_node=node, walk_length=self.walk_length)]
-			print out
+			#print out
 			yield out
 
 def main(args):
