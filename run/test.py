@@ -27,7 +27,7 @@ def test(parser, vocab, num_buckets_test, test_batch_size, test_file, output_fil
             results[sent_idx] = output
             idx += 1
 
-    arcs, rels = [], []
+    arcs, rels, probs = [], [], []
     for result in results:
         for x, y, z in zip(result[0], result[1], result[2]):
             arcs.append(x)
@@ -72,7 +72,7 @@ def raw_test(parser, vocab, num_buckets_test, test_batch_size, test_file, output
             results[sent_idx] = output
             idx += 1
     print 'Finishing'
-    arcs, rels = [], []
+    arcs, rels, probs = [], [], []
     for result in results:
         for x, y, z in zip(result[0], result[1], result[2]):
             arcs.append(x)

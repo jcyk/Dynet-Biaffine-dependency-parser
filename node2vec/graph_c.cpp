@@ -13,13 +13,23 @@ Graph::Graph(vector<int> u, vector<int> v, vector<float> w)
 	for(int i =0;i <u.size();i++){
 		mx = max(mx, max(u[i], v[i]));
 		long long key = (long long)u[i]<<31|v[i];
-		weights[key] = w[i];
+		if (weights.find(key) != weights.end()) weights[key] += w[i];
+		else weights[key] = w[i];
 	}
+	nodes = mx +1;
+	edges = weights.size();
+	cout << "number of nodes " << nodes << endl;
+	cout << "number of edges "<< edges << endl;
 	out_edge.resize(mx+1);
 	in_edge.resize(mx+1);
+	unordered_set<long long> tmp;
 	for(int i =0;i<u.size();i++){
-		out_edge[u[i]].push_back(v[i]);
-		in_edge[v[i]].push_back(u[i]);
+		long long key = (long long)u[i]<<31|v[i];
+		if (tmp.find(key) == tmp.end()){
+			out_edge[u[i]].push_back(v[i]);
+			in_edge[v[i]].push_back(u[i]);
+			tmp.insert(key);
+		}
 	}
 }
 
@@ -53,7 +63,7 @@ void Graph::preprocess()
 			q[i] = 0;
 		}
 		for(int v : out_edge[u]){
-			probs.push_back(weights[(long long)u<<31|v]);
+			probs.push_back(weights[(long long)u<<31|v]*log(nodes/in_edge[v].size()));
 		}
 		norm(probs);
 		for(int i =0;i<K;i++){
@@ -94,7 +104,7 @@ vector<int> Graph::walk(int start_node, int walk_length){
 	while (res.size()<walk_length){
 		if (out_edge[cur].size() == 0) break;
 		int kk = rand01()*JJ[cur].size();
-		kk = max(kk, JJ[cur].size()-1);
+		if (kk == JJ[cur].size()) kk--;
 		if (rand01()<qq[cur][kk])
 			cur = out_edge[cur][kk];
 		else

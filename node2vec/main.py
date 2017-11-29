@@ -2,7 +2,7 @@ import argparse
 import numpy as np
 from graph import PyGraph
 import gensim
-from collections import Counter
+from collections import defaultdict
 import sys, random, string
 
 def parse_args():
@@ -46,6 +46,10 @@ def parse_args():
 ROOT = '<root>'
 EOD = '<eod>'
 UNK = '<unk>'
+EDGE_MIN = 2
+NODE_MIN = 5
+INCLUDE_END = False
+INCLUDE_PUNC = True
 def update_graph(graph, fname):
 	nsents = 0
 	sent = [[ROOT, ROOT, 0, ROOT]]
@@ -57,36 +61,46 @@ def update_graph(graph, fname):
 			sent.append([word, tag, head, rel, prob])
 		else:
 			nsents += 1
-			head_set = set([ head for word, _, head, _, _ in sent[1:]])
-			for head in xrange(len(sent)):
-				if head not in head_set:
-					graph[(sent[head][0],EOD)] += 1
+			if INCLUDE_END:
+				head_set = set([ head for word, _, head, _, _ in sent[1:]])
+				for head in xrange(len(sent)):
+					if head not in head_set:
+						graph[(sent[head][0],EOD)] += 1.
 			for word, _, head, _, prob in sent[1:]:
 				graph[(sent[head][0], word)] += prob
 			sent = [[ROOT, ROOT, 0, ROOT]]
 	return nsents
 
 def read_graph(file_list):
-	graph = Counter()
+	graph = defaultdict(float)
 	nsents = 0
 	for fname in file_list:
 		nsents += update_graph(graph, fname)
 	print 'number of sentences', nsents
 	u, v, w = [], [], []
-	vocab = Counter()
+	vocab = defaultdict(float)
 	for edge in graph:
-		if edge[0] in string.punctuation or edge[1] in string.punctuation:
+		if (not INCLUDE_PUNC) and (edge[0] in string.punctuation or edge[1] in string.punctuation):
 			continue
-		if graph[edge] >=3:
+		if graph[edge] >= EDGE_MIN:
 			u.append(edge[0])
 			v.append(edge[1])
 			w.append(graph[edge])
-			vocab[edge[0]]+=1
-			vocab[edge[1]]+=1
-	id2word = [UNK]+[word for word in vocab if vocab[word]>=5]
+			vocab[edge[0]]+= graph[edge]
+			vocab[edge[1]]+= graph[edge]
+	print "WORDS ON EDGES", len(vocab)
+	id2word = [UNK]+[word for word in vocab if vocab[word] >= NODE_MIN ]
 	word2id = dict(zip(id2word,range(len(id2word))))
 	u = [word2id.get(x, 0) for x in u]
 	v = [word2id.get(x, 0) for x in v]
+	gooo = 0
+	for x in u:
+		if x == 0:
+			gooo +=1
+	for x in v:
+		if x == 0:
+			gooo +=1
+	print 'UNK TOT', gooo, len(u)+len(v)
 	G = PyGraph(u, v, w)
 	return G, id2word, word2id, nsents
 

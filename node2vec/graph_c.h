@@ -12,6 +12,8 @@ public:
 	unordered_map<long long, float> weights;
 	void preprocess();
 	vector<int> walk(int start_node, int walk_length);
+	int nodes;
+	int edges;
 	Graph();
 	Graph(vector<int> u, vector<int> v, vector<float> w);
 	~Graph();
