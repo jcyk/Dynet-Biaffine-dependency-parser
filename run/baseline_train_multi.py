@@ -37,9 +37,9 @@ class MixedVocab(objects):
 		self.get_word_embs = self.vocabs[0].get_word_embs
 		self.word2id = self.vocabs[0].word2id
 		self.id2word = self.vocabs[0].id2word
-		self.rel2id = [ vocab.rel2id for self.vocabs]
-		self.id2rel = [ vocab.id2rel for self.vocabs]
-		self.tag2id = [ vocab.tag2id for self.vocabs]
+		self.rel2id = [ vocab.rel2id for vocab in self.vocabs]
+		self.id2rel = [ vocab.id2rel for vocab in self.vocabs]
+		self.tag2id = [ vocab.tag2id for vocab in self.vocabs]
 		
 		@property 
 		def words_in_train(self):

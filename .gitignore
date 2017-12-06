@@ -48,3 +48,5 @@ node2vec/build/temp.macosx-10.11-x86_64-2.7/graph.o
 node2vec/graph.cpp
 
 node2vec/graph.so
+
+word2vec 12.35.48 AM
