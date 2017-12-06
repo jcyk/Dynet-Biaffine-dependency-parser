@@ -51,8 +51,8 @@ class BaseParserMulti(object):
 		self.rel_W1 = pc.add_parameters((vocab.rel_size[1]*(mlp_rel_size +1) , mlp_rel_size + 1), init = dy.ConstInitializer(0.))
 		self.rel_Ws = [self.rel_W0, self.rel_W1]
  		
- 		f = orthonormal_VanillaLSTMBuilder(1, word_dims, tag_dims/2, pc, randn_init)
-		b = orthonormal_VanillaLSTMBuilder(1, word_dims, tag_dims/2, pc, randn_init)
+ 		f = orthonormal_VanillaLSTMBuilder(1, word_dims, tag_dims//2, pc, randn_init)
+		b = orthonormal_VanillaLSTMBuilder(1, word_dims, tag_dims//2, pc, randn_init)
 		self.tag_LSTM_builders = [(f,b)]
 		self.tag_embs_W0 = pc.add_parameters((vocab.tag_size[0], tag_dims))
 		self.tag_embs_b0 = pc.add_parameters(vocab.tag_size[0], init = dy.ConstInitializer(0.))

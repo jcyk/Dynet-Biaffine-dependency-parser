@@ -27,6 +27,7 @@ class MixedDataLoader(object):
 			yield batch_tuple
 
 class MixedVocab(object):
+	PAD, ROOT, UNK = 0, 1, 2
 	def __init__ (self, file_list, pret_file = None, min_occur_count = 2):
 		self.vocabs = [ Vocab(f, pret_file, min_occur_count) for f in file_list]
 		for vocab in self.vocabs[1:]:
@@ -61,7 +62,7 @@ if __name__ == "__main__":
 	np.random.seed(666)
 	argparser = argparse.ArgumentParser()
 	argparser.add_argument('--config_file', default='../configs/multi.cfg')
-	argparser.add_argument('--out_domain_file', default='../../multi/aaai,conll')
+	argparser.add_argument('--out_domain_file', default='../../multi/aaai.conll')
 	argparser.add_argument('--model', default='BaseParserMulti')
 	args, extra_args = argparser.parse_known_args()
 	config = Configurable(args.config_file, extra_args)
