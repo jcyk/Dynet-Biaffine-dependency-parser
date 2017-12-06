@@ -8,7 +8,7 @@ from k_means import KMeans
 class Vocab(object):
 	PAD, ROOT, UNK = 0, 1, 2
 
-	def __init__(self, input_file, pret_file = None, min_occur_count = 2, aux_pret_file = None):
+	def __init__(self, input_file, pret_file = None, min_occur_count = 2):
 		word_counter = Counter()
 		tag_set = set()
 		rel_set = set()
@@ -33,11 +33,6 @@ class Vocab(object):
 		self._pret_file = pret_file
 		if pret_file:
 			self._add_pret_words(pret_file)
-		self._words_in_train_or_pret_data = len(self._id2word)
-
-		self._aux_pret_file = aux_pret_file
-		if aux_pret_file:
-			self._add_aux_pret_words(aux_pret_file)
 
 		self._id2tag += list(tag_set)
 		self._id2rel += list(rel_set)
@@ -48,25 +43,19 @@ class Vocab(object):
 		self._rel2id = reverse(self._id2rel)
 		print "Vocab info: #words %d, #tags %d #rels %d"%(self.vocab_size,self.tag_size, self.rel_size)
 	
-	def merge_with(self, o, only_words = False):
-		self._id2word = ['<pad>', '<root>', '<unk>'] + list(set(self._id2word[3:self.words_in_train]+ o._id2word[3:o.words_in_train]))
+	def merge_with(self, o):
+		self._id2word = list(set(self._id2word[:self.words_in_train] + o._id2word[:o.words_in_train]))
 		self._words_in_train_data = len(self._id2word)
-		if not only_words:
-			self._id2tag = ['<pad>', '<root>', '<unk>'] + list(set(self._id2tag[3:]+self._id2tag[3:]))
-			self._id2rel = ['<pad>', 'root'] + list(set(self._id2rel[2:] + self._id2rel[2:]))
+		
 		if self._pret_file:
 			self._add_pret_words(self._pret_file)
-		if self._aux_pret_file:
-			self._add_aux_pret_words(self._aux_pret_file)
 
 		reverse = lambda x : dict(zip(x, range(len(x))))
-		self._word2id = reverse(self._id2word)
-		self._tag2id = reverse(self._id2tag)
-		self._rel2id = reverse(self._id2rel)	
+		self._word2id = reverse(self._id2word)	
 
 	def _add_pret_words(self, pret_file):
 		print '#words in training set:', self._words_in_train_data
-		words_in_train_data = set(self._id2word)
+		words_in_train_data = set(self._id2word[:self._words_in_train_data])
 		with open(pret_file) as f:
 			for line in f.readlines():
 				line = line.strip().split()
@@ -74,11 +63,10 @@ class Vocab(object):
 					word = line[0]
 					if word not in words_in_train_data:
 						self._id2word.append(word)
-		#print 'Total words:', len(self._id2word)
 
 	def get_pret_embs(self):
 		assert (self._pret_file is not None), "No pretrained file provided."
-		embs = [[]] * self._words_in_train_or_pret_data
+		embs = [[]] * self.vocab_size
 		with open(self._pret_file) as f:
 			for line in f.readlines():
 				line = line.strip().split()
@@ -129,10 +117,6 @@ class Vocab(object):
 	@property 
 	def words_in_train(self):
 		return self._words_in_train_data
-	
-	@property 
-	def words_in_train_or_pret(self):
-		return self._words_in_train_or_pret_data
 
 	@property
 	def vocab_size(self):
@@ -145,42 +129,6 @@ class Vocab(object):
 	@property
 	def rel_size(self):
 		return len(self._id2rel)
-
-
-	def _add_aux_pret_words(self, input_file):
-		print '#words known', self._words_in_train_or_pret_data
-		known_words = set(self._id2word)
-		start = True
-		with open(input_file) as f:
-			for line in f.readlines():
-				if start:
-					start = False
-					continue
-				line = line.strip().split()
-				if line:
-					word = line[0]
-					if word not in known_words:
-						self._id2word.append(word)
-
-	def get_aux_pret_embs(self):
-		assert (self._aux_pret_file is not None), "No auxiliary pretrained file provided."
-		embs = [[]] * len(self._id2word) 
-		start = True
-		with open(self._aux_pret_file) as f:
-			for line in f.readlines():
-				if start:
-					start = False
-					continue
-				line = line.strip().split()
-				if line:
-					word, data = line[0], line[1:]
-					embs[self._word2id[word]] = data
-		emb_size = len(data)
-		for idx, emb in enumerate(embs):
-			if not emb:
-				embs[idx] = np.zeros(emb_size)
-		pret_embs = np.array(embs, dtype=np.float32)
-		return pret_embs
 
 
 class DataLoader(object):

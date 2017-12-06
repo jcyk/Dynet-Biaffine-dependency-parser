@@ -15,7 +15,6 @@ def orthonormal_VanillaLSTMBuilder(lstm_layers, input_dims, lstm_hiddens, pc, ra
 		params[0].set_value(np.concatenate([W_x]*4, 0))
 		params[1].set_value(np.concatenate([W_h]*4, 0))
 		b = np.zeros(4*lstm_hiddens, dtype=np.float32)
-		b[lstm_hiddens:2*lstm_hiddens] = -1.0
 		params[2].set_value(b)
 	return builder
 	

@@ -5,10 +5,8 @@ import numpy as np
 
 from lib import biLSTM, leaky_relu, bilinear, orthonormal_initializer, arc_argmax, rel_argmax, orthonormal_VanillaLSTMBuilder
 
-class BaseParser(object):
+class BaseParserMulti(object):
 	def __init__(self, vocab,
-					   vocab0,
-					   vocab1,
 					   word_dims,
 					   tag_dims,
 					   dropout_emb,
@@ -23,13 +21,9 @@ class BaseParser(object):
 					   ):
 		pc = dy.ParameterCollection()
 		
-		self.all_vocab = vocab
-		self._vocabs = [vocab0,vocab1,vocab]
+		self._vocab = vocab
 		self.word_embs = pc.lookup_parameters_from_numpy(vocab.get_word_embs(word_dims))
 		self.pret_word_embs = pc.lookup_parameters_from_numpy(vocab.get_pret_embs())
-		self.tag_embs0 = pc.lookup_parameters_from_numpy(vocab0.get_tag_embs(tag_dims))
-		self.tag_embs1 = pc.lookup_parameters_from_numpy(vocab1.get_tag_embs(tag_dims))
-		self.tag_embss = [self.tag_embs0, self.tag_embs1]
 		
 		self.LSTM_builders = []
 		f = orthonormal_VanillaLSTMBuilder(1, word_dims+tag_dims, lstm_hiddens, pc, randn_init)
@@ -53,57 +47,61 @@ class BaseParser(object):
 		self.dropout_mlp = dropout_mlp
 
 		self.arc_W = pc.add_parameters((mlp_arc_size, mlp_arc_size + 1), init = dy.ConstInitializer(0.))
-		self.rel_W0 = pc.add_parameters((vocab0.rel_size*(mlp_rel_size +1) , mlp_rel_size + 1), init = dy.ConstInitializer(0.))
-		self.rel_W1 = pc.add_parameters((vocab1.rel_size*(mlp_rel_size +1) , mlp_rel_size + 1), init = dy.ConstInitializer(0.))
+		self.rel_W0 = pc.add_parameters((vocab.rel_size[0]*(mlp_rel_size +1) , mlp_rel_size + 1), init = dy.ConstInitializer(0.))
+		self.rel_W1 = pc.add_parameters((vocab.rel_size[1]*(mlp_rel_size +1) , mlp_rel_size + 1), init = dy.ConstInitializer(0.))
 		self.rel_Ws = [self.rel_W0, self.rel_W1]
+ 		
+ 		f = orthonormal_VanillaLSTMBuilder(1, word_dims, tag_dims/2, pc, randn_init)
+		b = orthonormal_VanillaLSTMBuilder(1, word_dims, tag_dims/2, pc, randn_init)
+		self.tag_LSTM_builders = [(f,b)]
+		self.tag_embs_W0 = pc.add_parameters((vocab.tag_size[0], tag_dims))
+		self.tag_embs_b0 = pc.add_parameters(vocab.tag_size[0], init = dy.ConstInitializer(0.))
+		self.tag_embs_W1 = pc.add_parameters((vocab.tag_size[1], tag_dims))
+		self.tag_embs_b1 = pc.add_parameters(vocab.tag_size[1], init = dy.ConstInitializer(0.))
+		self.tag_embs_Ws = [self.tag_embs_W0, self.tag_embs_W1]
+		self.tag_embs_bs = [self.tag_embs_b0, self.tag_embs_b1]
 		self._pc = pc
-
-		def _emb_mask_generator(seq_len, batch_size):
-			ret = []
-			for i in xrange(seq_len):
-				word_mask = np.random.binomial(1, 1. - dropout_emb, batch_size).astype(np.float32)
-				tag_mask = np.random.binomial(1, 1. - dropout_emb, batch_size).astype(np.float32)
-				scale = 3. / (2.*word_mask + tag_mask + 1e-12)
-				word_mask *= scale
-				tag_mask *= scale
-				word_mask = dy.inputTensor(word_mask, batched = True)
-				tag_mask = dy.inputTensor(tag_mask, batched = True)
-				ret.append((word_mask, tag_mask))
-			return ret
-		self.generate_emb_mask = _emb_mask_generator
-
 
 	@property 
 	def parameter_collection(self):
 		return self._pc
 
-	def run(self, word_inputs, tag_inputs, arc_targets = None, rel_targets = None, isTrain = True, data_type = 0):
+	def run(self, word_inputs, tag_inputs, arc_targets = None, rel_targets = None, isTrain = True, data_type = 0, tag_turn = False):
 		# inputs, targets: seq_len x batch_size
-		self._vocab = self._vocabs[data_type]
-		self.tag_embs = self.tag_embss[data_type]
 		self.rel_W = self.rel_Ws[data_type]
-		
+		rel_size = self._vocab.rel_size[data_type]
 		def dynet_flatten_numpy(ndarray):
 			return np.reshape(ndarray, (-1,), 'F')
 
 		batch_size = word_inputs.shape[1]
 		seq_len = word_inputs.shape[0]
-		mask = np.greater(word_inputs, self.all_vocab.ROOT).astype(np.float32)
+		mask = np.greater(word_inputs, self._vocab.ROOT).astype(np.float32)
 		num_tokens = int(np.sum(mask))
 		
 		if isTrain or arc_targets is not None:
 			mask_1D = dynet_flatten_numpy(mask)
 			mask_1D_tensor = dy.inputTensor(mask_1D, batched = True)
 		
-		word_embs = [dy.lookup_batch(self.word_embs, np.where( w<self.all_vocab.words_in_train, w, self.all_vocab.UNK)) + dy.lookup_batch(self.pret_word_embs, w, update = False) for w in word_inputs]
-		tag_embs = [dy.lookup_batch(self.tag_embs, pos) for pos in tag_inputs]
+		word_embs = [dy.lookup_batch(self.word_embs, np.where( w<self._vocab.words_in_train, w, self._vocab.UNK)) + dy.lookup_batch(self.pret_word_embs, w, update = False) for w in word_inputs]
 		
 		if isTrain:
-			emb_masks = self.generate_emb_mask(seq_len, batch_size)
-			emb_inputs = [ dy.concatenate([dy.cmult(w, wm), dy.cmult(pos,posm)]) for w, pos, (wm, posm) in zip(word_embs,tag_embs,emb_masks)]
-		else:
-			emb_inputs = [ dy.concatenate([w, pos]) for w, pos in zip(word_embs,tag_embs)]
+			word_embs= [ dy.dropout_dim(w, 0, self.dropout_emb) for w in word_embs]
 
+		tag_recur = biLSTM(self.tag_LSTM_builders, word_embs, batch_size, self.dropout_lstm_input if isTrain else 0., self.dropout_lstm_hidden if isTrain else 0.)
+
+		W_tag, b_tag = dy.parameter(self.tag_embs_Ws[data_type]), dy.parameter(self.tag_embs_bs[data_type])
+		losses = []
+		correct = 0
+		for h, tgt, msk in zip(tag_recur, tag_inputs, mask):
+			y = W_tag * h + b_tag
+			losses.append(dy.pickneglogsoftmax_batch(y, tgt) * dy.inputTensor(msk, batched = True))
+			correct += np.sum(np.equal(y.npvalue().argmax(0), tgt).astype(np.float32) * mask)
+		tag_acc = correct / num_tokens
+		if tag_turn:
+			tag_loss = dy.sum_batches(dy.esum(losses)) / num_tokens
+			return tag_acc, tag_loss
+		
+		emb_inputs = [ dy.concatenate([w, pos]) for w, pos in zip(word_embs,tag_recur)]
 		top_recur = dy.concatenate_cols(biLSTM(self.LSTM_builders, emb_inputs, batch_size, self.dropout_lstm_input if isTrain else 0., self.dropout_lstm_hidden if isTrain else 0.))
 		if isTrain:
 			top_recur = dy.dropout_dim(top_recur, 1, self.dropout_mlp)
@@ -139,12 +137,11 @@ class BaseParser(object):
 			# #batch_size x #dep x #head
 
 		W_rel = dy.parameter(self.rel_W)
-		#dep_rel = dy.concatenate([dep_rel, dy.inputTensor(np.ones((1, seq_len),dtype=np.float32))])
-		#head_rel = dy.concatenate([head_rel, dy.inputTensor(np.ones((1, seq_len), dtype=np.float32))])
-		rel_logits = bilinear(dep_rel, W_rel, head_rel, self.mlp_rel_size, seq_len, batch_size, num_outputs = self._vocab.rel_size, bias_x = True, bias_y = True)
+
+		rel_logits = bilinear(dep_rel, W_rel, head_rel, self.mlp_rel_size, seq_len, batch_size, num_outputs = rel_size, bias_x = True, bias_y = True)
 		# (#head x rel_size x #dep) x batch_size
 		
-		flat_rel_logits = dy.reshape(rel_logits, (seq_len, self._vocab.rel_size), seq_len * batch_size)
+		flat_rel_logits = dy.reshape(rel_logits, (seq_len, rel_size), seq_len * batch_size)
 		# (#head x rel_size) x (#dep x batch_size)
 
 		partial_rel_logits = dy.pick_batch(flat_rel_logits, targets_1D if isTrain else dynet_flatten_numpy(arc_preds))
@@ -159,7 +156,7 @@ class BaseParser(object):
 			rel_loss = dy.sum_batches(losses * mask_1D_tensor) / num_tokens
 		
 		if not isTrain:
-			rel_probs = np.transpose(np.reshape(dy.softmax(dy.transpose(flat_rel_logits)).npvalue(), (self._vocab.rel_size, seq_len, seq_len, batch_size), 'F'))
+			rel_probs = np.transpose(np.reshape(dy.softmax(dy.transpose(flat_rel_logits)).npvalue(), (rel_size, seq_len, seq_len, batch_size), 'F'))
 			# batch_size x #dep x #head x #nclasses
 	
 		if isTrain or arc_targets is not None:
@@ -168,7 +165,7 @@ class BaseParser(object):
 			overall_accuracy = np.sum(correct) / num_tokens 
 		
 		if isTrain:
-			return arc_accuracy, rel_accuracy, overall_accuracy, loss
+			return arc_accuracy, rel_accuracy, overall_accuracy, tag_acc, loss
 		
 		outputs = []
 		
