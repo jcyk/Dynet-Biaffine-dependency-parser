@@ -5,7 +5,7 @@ sys.path.append('..')
 import dynet as dy
 import numpy as np
 import models
-from lib import MixedVocab, DataLoader
+from lib import Vocab, DataLoader
 from test import test
 from config import Configurable
 
@@ -26,7 +26,7 @@ class MixedDataLoader(object):
 		for batch_tuple in zip(*generators):
 			yield batch_tuple
 
-class MixedVocab(objects):
+class MixedVocab(object):
 	def __init__ (self, file_list, pret_file = None, min_occur_count = 2):
 		self.vocabs = [ Vocab(f, pret_file, min_occur_count) for f in file_list]
 		for vocab in self.vocabs[1:]:
