@@ -41,34 +41,34 @@ class MixedVocab(object):
 		self.id2rel = [ vocab.id2rel for vocab in self.vocabs]
 		self.tag2id = [ vocab.tag2id for vocab in self.vocabs]
 		
-		@property 
-		def words_in_train(self):
-			return self.vocabs[0]._words_in_train_data
+	@property 
+	def words_in_train(self):
+		return self.vocabs[0]._words_in_train_data
 
-		@property
-		def vocab_size(self):
-			return len(self.vocabs[0]._id2word)
+	@property
+	def vocab_size(self):
+		return len(self.vocabs[0]._id2word)
 
-		@property
-		def tag_size(self):
-			return [len(vocab._id2tag) for vocab in self.vocabs]
+	@property
+	def tag_size(self):
+		return [len(vocab._id2tag) for vocab in self.vocabs]
 
-		@property
-		def rel_size(self):
-			return [len(vocab._id2rel) for vocab in self.vocabs]
+	@property
+	def rel_size(self):
+		return [len(vocab._id2rel) for vocab in self.vocabs]
 
 if __name__ == "__main__":
 	np.random.seed(666)
 	argparser = argparse.ArgumentParser()
 	argparser.add_argument('--config_file', default='../configs/multi.cfg')
-	argparser.add_argument('--out_domain_file', default='../../multi/aaai')
+	argparser.add_argument('--out_domain_file', default='../../multi/aaai,conll')
 	argparser.add_argument('--model', default='BaseParserMulti')
 	args, extra_args = argparser.parse_known_args()
 	config = Configurable(args.config_file, extra_args)
 	Parser = getattr(models, args.model)
 
 	vocab = MixedVocab([config.train_file, args.out_domain_file], config.pretrained_embeddings_file, config.min_occur_count)
-	cPickle.dump(vocab, open(config.save_vocab_path, 'w'))
+	#cPickle.dump(vocab, open(config.save_vocab_path, 'w'))
 
 	parser = Parser(vocab, config.word_dims, config.tag_dims, config.dropout_emb, config.lstm_layers, config.lstm_hiddens, config.dropout_lstm_input, config.dropout_lstm_hidden, config.mlp_arc_size, config.mlp_rel_size, config.dropout_mlp)
 	data_loader = MixedDataLoader([config.train_file, args.out_domain_file], [1., 1.], config.num_buckets_train, vocab)
