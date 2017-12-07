@@ -98,7 +98,7 @@ class BaseParserMulti(object):
 		tag_recur1 = biLSTM(self.tag_LSTM_builders1, word_embs, batch_size, self.dropout_lstm_input if isTrain else 0., self.dropout_lstm_hidden if isTrain else 0.)
 		
 		W_tag, b_tag = dy.parameter(self.tag_embs_Ws[data_type]), dy.parameter(self.tag_embs_bs[data_type])
-		tag_recur = tag_recur0 if data_type == 0 else tag_recur1
+		tag_recur = (tag_recur0 if data_type == 0 else tag_recur1)
 		losses = []
 		correct = 0
 		for h, tgt, msk in zip(tag_recur, tag_inputs, mask):
@@ -106,6 +106,7 @@ class BaseParserMulti(object):
 			losses.append(dy.pickneglogsoftmax_batch(y, tgt) * dy.inputTensor(msk, batched = True))
 			correct += np.sum(np.equal(y.npvalue().argmax(0), tgt).astype(np.float32) * msk)
 		tag_acc = correct / num_tokens
+		
 		if tag_turn:
 			tag_loss = dy.sum_batches(dy.esum(losses)) / num_tokens
 			return tag_acc, tag_loss
@@ -187,8 +188,6 @@ class BaseParserMulti(object):
 			rel_pred = rel_argmax(rel_prob, sent_len)
 			outputs.append((arc_pred[1:sent_len], rel_pred[1:sent_len], arc_prob[np.arange(1, sent_len), arc_pred[1:sent_len]]))
 		
-		if arc_targets is not None:
-			return arc_accuracy, rel_accuracy, overall_accuracy, outputs
 		return outputs
 
 	def save(self, save_path):
