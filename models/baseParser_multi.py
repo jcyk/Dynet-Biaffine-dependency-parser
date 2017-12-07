@@ -24,7 +24,7 @@ class BaseParserMulti(object):
 		self._vocab = vocab
 		self.word_embs = pc.lookup_parameters_from_numpy(vocab.get_word_embs(word_dims))
 		self.pret_word_embs = pc.lookup_parameters_from_numpy(vocab.get_pret_embs())
-		
+		self.dropout_emb = dropout_emb
 		self.LSTM_builders = []
 		f = orthonormal_VanillaLSTMBuilder(1, word_dims+tag_dims, lstm_hiddens, pc, randn_init)
 		b = orthonormal_VanillaLSTMBuilder(1, word_dims+tag_dims, lstm_hiddens, pc, randn_init)
@@ -165,7 +165,7 @@ class BaseParserMulti(object):
 			overall_accuracy = np.sum(correct) / num_tokens 
 		
 		if isTrain:
-			return arc_accuracy, rel_accuracy, overall_accuracy, tag_acc, loss
+			return arc_accuracy, rel_accuracy, overall_accuracy, loss
 		
 		outputs = []
 		
@@ -176,7 +176,7 @@ class BaseParserMulti(object):
 			arc_pred = arc_argmax(arc_prob, sent_len, msk)
 			rel_prob = rel_prob[np.arange(len(arc_pred)),arc_pred]
 			rel_pred = rel_argmax(rel_prob, sent_len)
-			outputs.append((arc_pred[1:sent_len], rel_pred[1:sent_len]))
+			outputs.append((arc_pred[1:sent_len], rel_pred[1:sent_len], arc_prob[np.arange(1, sent_len), arc_pred[1:sent_len]]))
 		
 		if arc_targets is not None:
 			return arc_accuracy, rel_accuracy, overall_accuracy, outputs
