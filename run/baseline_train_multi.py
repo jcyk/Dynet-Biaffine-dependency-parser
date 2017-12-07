@@ -28,12 +28,8 @@ class MixedDataLoader(object):
 
 class MixedVocab(object):
 	PAD, ROOT, UNK = 0, 1, 2
-	def __init__ (self, file_list, pret_file = None, min_occur_count = 2):
-		self.vocabs = [ Vocab(f, pret_file, min_occur_count) for f in file_list]
-		for vocab in self.vocabs[1:]:
-			self.vocabs[0].merge_with(vocab)
-		for vocab in self.vocabs[1:]:
-			vocab.merge_with(self.vocabs[0])
+	def __init__ (self, vocabs):
+		self.vocabs = vocabs
 		self.get_pret_embs = self.vocabs[0].get_pret_embs
 		self.get_word_embs = self.vocabs[0].get_word_embs
 		self.word2id = self.vocabs[0].word2id
@@ -68,8 +64,12 @@ if __name__ == "__main__":
 	config = Configurable(args.config_file, extra_args)
 	Parser = getattr(models, args.model)
 
-	vocab = MixedVocab([config.train_file, args.out_domain_file], config.pretrained_embeddings_file, config.min_occur_count)
-	#cPickle.dump(vocab, open(config.save_vocab_path, 'w'))
+	vocab0 = Vocab(config.train_file, None, config.min_occur_count)
+	vocab1 = Vocab(args.out_domain_file, None, config.min_occur_count)
+	Vocab.merge(vocab0, vocab1, config.pretrained_embeddings_file)
+	vocab = MixedVocab([vocab0, vocab1])
+	cPickle.dump(vocab0, open(config.save_vocab_path+"0", 'w'))
+	cPickle.dump(vocab1, open(config.save_vocab_path+"1", 'w'))
 
 	parser = Parser(vocab, config.word_dims, config.tag_dims, config.dropout_emb, config.lstm_layers, config.lstm_hiddens, config.dropout_lstm_input, config.dropout_lstm_hidden, config.mlp_arc_size, config.mlp_rel_size, config.dropout_mlp)
 	data_loader = MixedDataLoader([config.train_file, args.out_domain_file], [1., 1.], config.num_buckets_train, vocab)
@@ -91,7 +91,7 @@ if __name__ == "__main__":
 			for domain, _inputs in enumerate([_in, _out]):
 				words, tags, arcs, rels = _inputs
 				dy.renew_cg()
-				if global_step % 2 == 0 or global_step < 1000:
+				if global_step % 2 == 0:
 					tag_acc, loss = parser.run(words, tags, arcs, rels, data_type = domain, tag_turn = True)
 					loss_value = loss.scalar_value()
 					print "Step #%d: Domain: %d Acc: tag %.2f loss %.3f" %(global_step, domain,tag_acc, loss_value)

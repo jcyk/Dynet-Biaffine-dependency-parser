@@ -27,7 +27,11 @@ class Configurable(object):
 
 	@property
 	def pretrained_embeddings_file(self):
-		return self._config.get('Data','pretrained_embeddings_file')
+		x =  self._config.get('Data','pretrained_embeddings_file')
+		if x == "None":
+			return None
+		return x
+		
 	@property
 	def aux_pretrained_embeddings_file(self):
 		return self._config.get('Data','aux_pretrained_embeddings_file')

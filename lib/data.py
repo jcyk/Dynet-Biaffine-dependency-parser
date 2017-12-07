@@ -43,15 +43,15 @@ class Vocab(object):
 		self._rel2id = reverse(self._id2rel)
 		print "Vocab info: #words %d, #tags %d #rels %d"%(self.vocab_size,self.tag_size, self.rel_size)
 	
-	def merge_with(self, o):
-		self._id2word = list(set(self._id2word[:self.words_in_train] + o._id2word[:o.words_in_train]))
-		self._words_in_train_data = len(self._id2word)
-		
-		if self._pret_file:
-			self._add_pret_words(self._pret_file)
-
-		reverse = lambda x : dict(zip(x, range(len(x))))
-		self._word2id = reverse(self._id2word)	
+	def merge(x, y, pret_file = None):
+		x._id2word = list(set(x._id2word[:x.words_in_train] + y._id2word[:y.words_in_train]))
+		if pret_file:
+			x._add_pret_words(pret_file)
+		y._id2word = x._id2word
+		y._words_in_train_data = x._words_in_train_data
+		reverse = lambda z : dict(zip(z, range(len(z))))
+		x._word2id = reverse(x._id2word)
+		y._word2id = x._word2id	
 
 	def _add_pret_words(self, pret_file):
 		print '#words in training set:', self._words_in_train_data
