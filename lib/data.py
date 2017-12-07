@@ -54,6 +54,7 @@ class Vocab(object):
 		y._word2id = x._word2id	
 
 	def _add_pret_words(self, pret_file):
+		self._pret_file = pret_file
 		print '#words in training set:', self._words_in_train_data
 		words_in_train_data = set(self._id2word[:self._words_in_train_data])
 		with open(pret_file) as f:

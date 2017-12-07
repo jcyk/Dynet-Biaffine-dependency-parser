@@ -26,8 +26,8 @@ class BaseParserMulti(object):
 		self.pret_word_embs = pc.lookup_parameters_from_numpy(vocab.get_pret_embs())
 		self.dropout_emb = dropout_emb
 		self.LSTM_builders = []
-		f = orthonormal_VanillaLSTMBuilder(1, word_dims+tag_dims, lstm_hiddens, pc, randn_init)
-		b = orthonormal_VanillaLSTMBuilder(1, word_dims+tag_dims, lstm_hiddens, pc, randn_init)
+		f = orthonormal_VanillaLSTMBuilder(1, word_dims+2*tag_dims, lstm_hiddens, pc, randn_init)
+		b = orthonormal_VanillaLSTMBuilder(1, word_dims+2*tag_dims, lstm_hiddens, pc, randn_init)
 		self.LSTM_builders.append((f,b))
 		for i in xrange(lstm_layers-1):
 			f = orthonormal_VanillaLSTMBuilder(1, 2*lstm_hiddens, lstm_hiddens, pc, randn_init)
@@ -55,7 +55,12 @@ class BaseParserMulti(object):
  		
  		f = orthonormal_VanillaLSTMBuilder(1, word_dims, tag_dims//2, pc, randn_init)
 		b = orthonormal_VanillaLSTMBuilder(1, word_dims, tag_dims//2, pc, randn_init)
-		self.tag_LSTM_builders = [(f,b)]
+		self.tag_LSTM_builders0 = [(f,b)]
+
+		f = orthonormal_VanillaLSTMBuilder(1, word_dims, tag_dims//2, pc, randn_init)
+		b = orthonormal_VanillaLSTMBuilder(1, word_dims, tag_dims//2, pc, randn_init)
+		self.tag_LSTM_builders1 = [(f,b)]
+
 		self.tag_embs_W0 = pc.add_parameters((vocab.tag_size[0], tag_dims))
 		self.tag_embs_b0 = pc.add_parameters(vocab.tag_size[0], init = dy.ConstInitializer(0.))
 		self.tag_embs_W1 = pc.add_parameters((vocab.tag_size[1], tag_dims))
@@ -89,9 +94,11 @@ class BaseParserMulti(object):
 		if isTrain:
 			word_embs= [ dy.dropout_dim(w, 0, self.dropout_emb) for w in word_embs]
 
-		tag_recur = biLSTM(self.tag_LSTM_builders, word_embs, batch_size, self.dropout_lstm_input if isTrain else 0., self.dropout_lstm_hidden if isTrain else 0.)
-
+		tag_recur0 = biLSTM(self.tag_LSTM_builders0, word_embs, batch_size, self.dropout_lstm_input if isTrain else 0., self.dropout_lstm_hidden if isTrain else 0.)
+		tag_recur1 = biLSTM(self.tag_LSTM_builders1, word_embs, batch_size, self.dropout_lstm_input if isTrain else 0., self.dropout_lstm_hidden if isTrain else 0.)
+		
 		W_tag, b_tag = dy.parameter(self.tag_embs_Ws[data_type]), dy.parameter(self.tag_embs_bs[data_type])
+		tag_recur = tag_recur0 if data_type == 0 else tag_recur1
 		losses = []
 		correct = 0
 		for h, tgt, msk in zip(tag_recur, tag_inputs, mask):
@@ -103,7 +110,7 @@ class BaseParserMulti(object):
 			tag_loss = dy.sum_batches(dy.esum(losses)) / num_tokens
 			return tag_acc, tag_loss
 		
-		emb_inputs = [ dy.concatenate([w, pos]) for w, pos in zip(word_embs,tag_recur)]
+		emb_inputs = [ dy.concatenate([w, pos, pos1]) for w, pos0, pos1 in zip(word_embs,tag_recur0, tag_recur1)]
 		top_recur = dy.concatenate_cols(biLSTM(self.LSTM_builders, emb_inputs, batch_size, self.dropout_lstm_input if isTrain else 0., self.dropout_lstm_hidden if isTrain else 0.))
 		if isTrain:
 			top_recur = dy.dropout_dim(top_recur, 1, self.dropout_mlp)
