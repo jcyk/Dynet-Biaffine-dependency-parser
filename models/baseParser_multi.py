@@ -46,7 +46,9 @@ class BaseParserMulti(object):
 		self.mlp_rel_size = mlp_rel_size
 		self.dropout_mlp = dropout_mlp
 
-		self.arc_W = pc.add_parameters((mlp_arc_size, mlp_arc_size + 1), init = dy.ConstInitializer(0.))
+		self.arc_W0 = pc.add_parameters((mlp_arc_size, mlp_arc_size + 1), init = dy.ConstInitializer(0.))
+		self.arc_W1 = pc.add_parameters((mlp_arc_size, mlp_arc_size + 1), init = dy.ConstInitializer(0.)) 
+		self.arc_Ws = [self.arc_W0, self.arc_W1]
 		self.rel_W0 = pc.add_parameters((vocab.rel_size[0]*(mlp_rel_size +1) , mlp_rel_size + 1), init = dy.ConstInitializer(0.))
 		self.rel_W1 = pc.add_parameters((vocab.rel_size[1]*(mlp_rel_size +1) , mlp_rel_size + 1), init = dy.ConstInitializer(0.))
 		self.rel_Ws = [self.rel_W0, self.rel_W1]
@@ -95,7 +97,7 @@ class BaseParserMulti(object):
 		for h, tgt, msk in zip(tag_recur, tag_inputs, mask):
 			y = W_tag * h + b_tag
 			losses.append(dy.pickneglogsoftmax_batch(y, tgt) * dy.inputTensor(msk, batched = True))
-			correct += np.sum(np.equal(y.npvalue().argmax(0), tgt).astype(np.float32) * mask)
+			correct += np.sum(np.equal(y.npvalue().argmax(0), tgt).astype(np.float32) * msk)
 		tag_acc = correct / num_tokens
 		if tag_turn:
 			tag_loss = dy.sum_batches(dy.esum(losses)) / num_tokens
@@ -115,7 +117,7 @@ class BaseParserMulti(object):
 		dep_arc, dep_rel = dep[:self.mlp_arc_size], dep[self.mlp_arc_size:]
 		head_arc, head_rel = head[:self.mlp_arc_size], head[self.mlp_arc_size:]
 
-		W_arc = dy.parameter(self.arc_W)
+		W_arc = dy.parameter(self.arc_Ws[data_type])
 		arc_logits = bilinear(dep_arc, W_arc, head_arc, self.mlp_arc_size, seq_len, batch_size, num_outputs= 1, bias_x = True, bias_y = False)
 		# (#head x #dep) x batch_size
 		
