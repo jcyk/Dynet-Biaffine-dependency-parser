@@ -94,20 +94,18 @@ if __name__ == "__main__":
 				if global_step % 2 == 0:
 					tag_acc, loss = parser.run(words, tags, arcs, rels, data_type = domain, tag_turn = True)
 					loss_value = loss.scalar_value()
-					sys.stdout.write("\r\rStep #%d: Acc: arc %.2f loss %.3f" %(global_step, arc_tag, loss_value))
-					sys.stdout.flush()
+					print "Step #%d: Domain: %d Acc: tag %.2f loss %.3f" %(global_step, domain,tag_acc, loss_value)
 				else:
 					arc_accuracy, rel_accuracy, overall_accuracy, loss = parser.run(words, tags, arcs, rels, data_type = domain)
 					loss_value = loss.scalar_value()
-					sys.stdout.write("\r\rStep #%d: Acc: arc %.2f, rel %.2f, overall %.2f, loss %.3f" %(global_step, arc_accuracy, rel_accuracy, overall_accuracy, loss_value))
-					sys.stdout.flush()
+					print "\r\rStep #%d: Domain: %d Acc: arc %.2f, rel %.2f, overall %.2f, loss %.3f" %(global_step, domain, arc_accuracy, rel_accuracy, overall_accuracy, loss_value)
 				loss.backward()
 				update_parameters()
 
 				global_step += 1
 			if global_step % config.validate_every == 0:
 				print '\nTest on development set'
-				LAS, UAS = test(parser, vocab, config.num_buckets_valid, config.test_batch_size, config.dev_file, os.path.join(config.save_dir, 'valid_tmp'))
+				LAS, UAS = test(parser, vocab.vocabs[0], config.num_buckets_valid, config.test_batch_size, config.dev_file, os.path.join(config.save_dir, 'valid_tmp'))
 				history(LAS, UAS)
 				if global_step > config.save_after and UAS > best_UAS:
 					best_UAS = UAS
