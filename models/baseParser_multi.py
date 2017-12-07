@@ -110,7 +110,7 @@ class BaseParserMulti(object):
 			tag_loss = dy.sum_batches(dy.esum(losses)) / num_tokens
 			return tag_acc, tag_loss
 		
-		emb_inputs = [ dy.concatenate([w, pos, pos1]) for w, pos0, pos1 in zip(word_embs,tag_recur0, tag_recur1)]
+		emb_inputs = [ dy.concatenate([w, pos0, pos1]) for w, pos0, pos1 in zip(word_embs,tag_recur0, tag_recur1)]
 		top_recur = dy.concatenate_cols(biLSTM(self.LSTM_builders, emb_inputs, batch_size, self.dropout_lstm_input if isTrain else 0., self.dropout_lstm_hidden if isTrain else 0.))
 		if isTrain:
 			top_recur = dy.dropout_dim(top_recur, 1, self.dropout_mlp)
