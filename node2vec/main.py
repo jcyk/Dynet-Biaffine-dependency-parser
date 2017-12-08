@@ -26,7 +26,7 @@ def parse_args():
 	parser.add_argument('--num-walks', type=int, default=10,
 	                    help='Number of walks per source. Default is 10.')
 
-	parser.add_argument('--window-size', type=int, default=2,
+	parser.add_argument('--window-size', type=int, default=1,
                     	help='Context size for optimization. Default is 2.')
 
 	parser.add_argument('--iter', default=3, type=int,
@@ -35,11 +35,6 @@ def parse_args():
 	parser.add_argument('--workers', type=int, default=8,
 	                    help='Number of parallel workers. Default is 8.')
 
-	parser.add_argument('--p', type=float, default=1,
-	                    help='Return hyperparameter. Default is 1.')
-
-	parser.add_argument('--q', type=float, default=1,
-	                    help='Inout hyperparameter. Default is 1.')
 
 	return parser.parse_args()
 
@@ -47,7 +42,7 @@ ROOT = '<root>'
 EOD = '<eod>'
 UNK = '<unk>'
 EDGE_MIN = 2
-NODE_MIN = 5
+NODE_MIN = 0
 INCLUDE_END = False
 INCLUDE_PUNC = True
 def update_graph(graph, fname):

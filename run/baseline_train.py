@@ -16,7 +16,7 @@ if __name__ == "__main__":
 	argparser.add_argument('--config_file', default='../configs/default.cfg')
 	argparser.add_argument('--model', default='BaseParser')
 	args, extra_args = argparser.parse_known_args()
-	config = Configurable(args.config_file, extra_args)
+	config = Configurable(args.config_file, extra_args, model = args.model)
 	Parser = getattr(models, args.model)
 
 	vocab = Vocab(config.train_file, config.pretrained_embeddings_file, config.min_occur_count)

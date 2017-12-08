@@ -104,12 +104,11 @@ import argparse
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser()
     argparser.add_argument('--config_file', default='../configs/default.cfg')
-    argparser.add_argument('--model', default='BaseParser')
     argparser.add_argument('--output_file', default='here')
     args, extra_args = argparser.parse_known_args()
     config = Configurable(args.config_file, extra_args, for_test = True)
-    Parser = getattr(models, args.model)
-    if args.model == "BaseParserMulti":
+    Parser = getattr(models, config.model)
+    if config.model == "BaseParserMulti":
         from baseline_train_multi import MixedVocab
         vocab0 = cPickle.load(open(config.load_vocab_path+"0"))
         vocab1 = cPickle.load(open(config.load_vocab_path+"1"))
@@ -117,16 +116,16 @@ if __name__ == '__main__':
     else:
         vocab = cPickle.load(open(config.load_vocab_path))
     _notag = False
-    if args.model == 'BaseParser':
+    if config.model == 'BaseParser':
         parser = Parser(vocab, config.word_dims, config.tag_dims, config.dropout_emb, config.lstm_layers, config.lstm_hiddens, config.dropout_lstm_input, config.dropout_lstm_hidden, config.mlp_arc_size, config.mlp_rel_size, config.dropout_mlp, randn_init = True)
-    elif args.model == 'LossParser':
+    elif config.model == 'LossParser':
         parser = Parser(vocab, config.word_dims, config.tag_dims, config.dropout_emb, config.lstm_layers, config.lstm_hiddens, config.dropout_lstm_input, config.dropout_lstm_hidden, config.mlp_arc_size, config.mlp_rel_size, config.dropout_mlp, config.choice_size, randn_init = True)    
-    elif args.model == 'NotagParser':
+    elif config.model == 'NotagParser':
         _notag = True
         parser = Parser(vocab, config.word_dims, config.dropout_emb, config.lstm_layers, config.lstm_hiddens, config.dropout_lstm_input, config.dropout_lstm_hidden, config.mlp_arc_size, config.mlp_rel_size, config.dropout_mlp, randn_init = True)
-    elif args.model == 'DistilltagParser':
+    elif config.model == 'DistilltagParser':
         parser = Parser(vocab, config.word_dims, config.tag_dims, config.dropout_emb, config.lstm_layers, config.lstm_hiddens, config.dropout_lstm_input, config.dropout_lstm_hidden, config.mlp_arc_size, config.mlp_rel_size, config.dropout_mlp, config.choice_size, randn_init = True)    
-    elif args.model == "BaseParserMulti":
+    elif config.model == "BaseParserMulti":
         parser = Parser(vocab, config.word_dims, config.tag_dims, config.dropout_emb, config.lstm_layers, config.lstm_hiddens, config.dropout_lstm_input, config.dropout_lstm_hidden, config.mlp_arc_size, config.mlp_rel_size, config.dropout_mlp)
     parser.load(config.load_model_path)
     test(parser, vocab, config.num_buckets_test, config.test_batch_size, config.test_file, args.output_file, _notag)

@@ -4,7 +4,7 @@ sys.path.append('..')
 import models
 
 class Configurable(object):
-	def __init__(self, config_file, extra_args, for_test = False):
+	def __init__(self, config_file, extra_args, for_test = False, model = None):
 		config = SafeConfigParser()
 		config.read(config_file)
 		if extra_args:
@@ -19,6 +19,7 @@ class Configurable(object):
 			if not os.path.isdir(self.save_dir):
 				os.mkdir(self.save_dir)
 			config.set('Save', 'load_dir', self.save_dir)
+			config.set('Network', 'Model', model)
 			config.write(open(self.config_file,'w'))
 		print 'Loaded config file sucessfully.'
 		for section in config.sections():
@@ -152,13 +153,4 @@ class Configurable(object):
 		return self._config.getint('Run','validate_every')
 	@property
 	def save_after(self):
-		return self._config.getint('Run','save_after')
-import argparse
-if __name__ == "__main__":
-	argparser = argparse.ArgumentParser()
-	argparser.add_argument('--config_file', default='../configs/default.cfg')
-	argparser.add_argument('--model', default='BaseParser')
-	args, extra_args = argparser.parse_known_args()
-
-	config = Configurable(args.config_file, extra_args)
-	Parser = getattr(models, args.model)	
+		return self._config.getint('Run','save_after')	

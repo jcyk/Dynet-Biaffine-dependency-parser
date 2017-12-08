@@ -20,7 +20,7 @@ if __name__ == "__main__":
 	argparser.add_argument('--ncritic', type=int, default = 5)
 
 	args, extra_args = argparser.parse_known_args()
-	config = Configurable(args.config_file, extra_args)
+	config = Configurable(args.config_file, extra_args, model = args.model)
 	Parser = getattr(models, args.model)
 	
 	vocab = Vocab(config.train_file, config.pretrained_embeddings_file, config.min_occur_count)

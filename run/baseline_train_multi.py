@@ -61,7 +61,7 @@ if __name__ == "__main__":
 	argparser.add_argument('--out_domain_file', default='../../multi/aaai.conll')
 	argparser.add_argument('--model', default='BaseParserMulti')
 	args, extra_args = argparser.parse_known_args()
-	config = Configurable(args.config_file, extra_args)
+	config = Configurable(args.config_file, extra_args, model = args.model)
 	Parser = getattr(models, args.model)
 
 	vocab0 = Vocab(config.train_file, None, config.min_occur_count)
