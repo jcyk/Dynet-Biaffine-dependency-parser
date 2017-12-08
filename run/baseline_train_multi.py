@@ -84,7 +84,7 @@ if __name__ == "__main__":
 	epoch = 0
 	best_UAS = 0.
 	history = lambda x, y : open(os.path.join(config.save_dir, 'valid_history'),'a').write('%.2f %.2f\n'%(x,y))
-	while global_step < 2*config.train_iters:
+	while global_step < config.train_iters:
 		print time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), '\nStart training epoch #%d'%(epoch, )
 		epoch += 1
 		for _in, _out in data_loader.get_batches(batch_size = config.train_batch_size):
@@ -102,7 +102,7 @@ if __name__ == "__main__":
 				loss.backward()
 				update_parameters()
 
-				global_step += 1
+			global_step += 1
 			if global_step % config.validate_every == 0:
 				print '\nTest on development set'
 				LAS, UAS = test(parser, vocab.vocabs[0], config.num_buckets_valid, config.test_batch_size, config.dev_file, os.path.join(config.save_dir, 'valid_tmp'))
