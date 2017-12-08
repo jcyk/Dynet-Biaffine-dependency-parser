@@ -108,7 +108,7 @@ class BaseParserMulti(object):
 				losses.append(dy.pickneglogsoftmax_batch(y, tgt) * dy.inputTensor(msk, batched = True))
 				correct += np.sum(np.equal(y.npvalue().argmax(0), tgt).astype(np.float32) * msk)
 			tag_acc = correct / num_tokens
-			if not isTrain
+			if not isTrain:
 				print tag_acc, num_tokens
 			if isTrain:
 				tag_loss = dy.sum_batches(dy.esum(losses)) / num_tokens

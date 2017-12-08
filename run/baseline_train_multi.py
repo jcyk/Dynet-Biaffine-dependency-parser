@@ -91,7 +91,7 @@ if __name__ == "__main__":
 			for domain, _inputs in enumerate([_in, _out]):
 				words, tags, arcs, rels = _inputs
 				dy.renew_cg()
-				if global_step % 2 == 0 
+				if global_step % 2 == 0:
 					tag_acc, loss = parser.run(words, tags, arcs, rels, data_type = domain, tag_turn = True)
 					loss_value = loss.scalar_value()
 					print "Step #%d: Domain: %d Acc: tag %.2f loss %.3f" %(global_step, domain,tag_acc, loss_value)
