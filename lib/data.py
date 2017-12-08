@@ -44,7 +44,7 @@ class Vocab(object):
 		print "Vocab info: #words %d, #tags %d #rels %d"%(self.vocab_size,self.tag_size, self.rel_size)
 	
 	def merge(x, y, pret_file = None):
-		x._id2word = list(set(x._id2word[:x.words_in_train] + y._id2word[:y.words_in_train]))
+		x._id2word = ['<pad>', '<root>', '<unk>'] + list(set(x._id2word[3:x.words_in_train] + y._id2word[3:y.words_in_train]))
 		if pret_file:
 			x._add_pret_words(pret_file)
 		y._id2word = x._id2word
@@ -102,8 +102,8 @@ class Vocab(object):
 
 	def rel2id(self, xs):
 		if isinstance(xs, list):
-			return [self._rel2id.get(x, self.PAD) for x in xs]
-		return self._rel2id.get(xs, self.PAD)
+			return [self._rel2id.get(x, self.UNK) for x in xs]
+		return self._rel2id.get(xs, self.UNK)
 
 	def id2rel(self,xs):
 		if isinstance(xs, list):
