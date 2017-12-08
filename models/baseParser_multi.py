@@ -100,16 +100,19 @@ class BaseParserMulti(object):
 		W_tag, b_tag = dy.parameter(self.tag_embs_Ws[data_type]), dy.parameter(self.tag_embs_bs[data_type])
 		tag_recur = (tag_recur0 if data_type == 0 else tag_recur1)
 		losses = []
-		correct = 0
-		for h, tgt, msk in zip(tag_recur, tag_inputs, mask):
-			y = W_tag * h + b_tag
-			losses.append(dy.pickneglogsoftmax_batch(y, tgt) * dy.inputTensor(msk, batched = True))
-			correct += np.sum(np.equal(y.npvalue().argmax(0), tgt).astype(np.float32) * msk)
-		tag_acc = correct / num_tokens
-		
-		if tag_turn:
-			tag_loss = dy.sum_batches(dy.esum(losses)) / num_tokens
-			return tag_acc, tag_loss
+
+		if tag_turn or not isTrain:
+			correct = 0
+			for h, tgt, msk in zip(tag_recur, tag_inputs, mask):
+				y = W_tag * h + b_tag
+				losses.append(dy.pickneglogsoftmax_batch(y, tgt) * dy.inputTensor(msk, batched = True))
+				correct += np.sum(np.equal(y.npvalue().argmax(0), tgt).astype(np.float32) * msk)
+			tag_acc = correct / num_tokens
+			if not isTrain
+				print tag_acc, num_tokens
+			if isTrain:
+				tag_loss = dy.sum_batches(dy.esum(losses)) / num_tokens
+				return tag_acc, tag_loss
 		
 		emb_inputs = [ dy.concatenate([w, pos0, pos1]) for w, pos0, pos1 in zip(word_embs,tag_recur0, tag_recur1)]
 		top_recur = dy.concatenate_cols(biLSTM(self.LSTM_builders, emb_inputs, batch_size, self.dropout_lstm_input if isTrain else 0., self.dropout_lstm_hidden if isTrain else 0.))
