@@ -68,7 +68,20 @@ class BaseParserMulti(object):
 		self.tag_embs_Ws = [self.tag_embs_W0, self.tag_embs_W1]
 		self.tag_embs_bs = [self.tag_embs_b0, self.tag_embs_b1]
 		self._pc = pc
-
+		
+		def _emb_mask_generator(seq_len, batch_size):
+			ret = []
+			for i in xrange(seq_len):
+				word_mask = np.random.binomial(1, 1. - dropout_emb, batch_size).astype(np.float32)
+				tag_mask = np.random.binomial(1, 1. - dropout_emb, batch_size).astype(np.float32)
+				scale = 3. / (2.*word_mask + tag_mask + 1e-12)
+				word_mask *= scale
+				tag_mask *= scale
+				word_mask = dy.inputTensor(word_mask, batched = True)
+				tag_mask = dy.inputTensor(tag_mask, batched = True)
+				ret.append((word_mask, tag_mask))
+			return ret
+		self.generate_emb_mask = _emb_mask_generator
 	@property 
 	def parameter_collection(self):
 		return self._pc
@@ -91,11 +104,11 @@ class BaseParserMulti(object):
 		
 		word_embs = [dy.lookup_batch(self.word_embs, np.where( w<self._vocab.words_in_train, w, self._vocab.UNK)) + dy.lookup_batch(self.pret_word_embs, w, update = False) for w in word_inputs]
 		
-		if isTrain:
+		if isTrain and tag_turn:
 			word_embs= [ dy.dropout_dim(w, 0, self.dropout_emb) for w in word_embs]
 
-		tag_recur0 = biLSTM(self.tag_LSTM_builders0, word_embs, batch_size, self.dropout_lstm_input if isTrain else 0., self.dropout_lstm_hidden if isTrain else 0.)
-		tag_recur1 = biLSTM(self.tag_LSTM_builders1, word_embs, batch_size, self.dropout_lstm_input if isTrain else 0., self.dropout_lstm_hidden if isTrain else 0.)
+		tag_recur0 = biLSTM(self.tag_LSTM_builders0, word_embs, batch_size, self.dropout_lstm_input if (isTrain and tag_turn) else 0., self.dropout_lstm_hidden if (isTrain and tag_turn) else 0.)
+		tag_recur1 = biLSTM(self.tag_LSTM_builders1, word_embs, batch_size, self.dropout_lstm_input if (isTrain and tag_turn) else 0., self.dropout_lstm_hidden if (isTrain and tag_turn) else 0.)
 		
 		W_tag, b_tag = dy.parameter(self.tag_embs_Ws[data_type]), dy.parameter(self.tag_embs_bs[data_type])
 		tag_recur = (tag_recur0 if data_type == 0 else tag_recur1)
@@ -113,8 +126,8 @@ class BaseParserMulti(object):
 			if isTrain:
 				tag_loss = dy.sum_batches(dy.esum(losses)) / num_tokens
 				return tag_acc, tag_loss
-		
-		emb_inputs = [ dy.concatenate([w, pos0, pos1]) for w, pos0, pos1 in zip(word_embs,tag_recur0, tag_recur1)]
+		emb_masks = self.generate_emb_mask(seq_len, batch_size)
+		emb_inputs = [ dy.concatenate([dy.cmult(w, wm), dy.cmult(pos0,posm), dy.cmult(pos1,posm)]) for w, pos0, pos1, (wm, posm) in zip(word_embs,tag_recur0, tag_recur1, emb_masks)]
 		top_recur = dy.concatenate_cols(biLSTM(self.LSTM_builders, emb_inputs, batch_size, self.dropout_lstm_input if isTrain else 0., self.dropout_lstm_hidden if isTrain else 0.))
 		if isTrain:
 			top_recur = dy.dropout_dim(top_recur, 1, self.dropout_mlp)
