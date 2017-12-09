@@ -74,12 +74,17 @@ if __name__ == "__main__":
 	parser = Parser(vocab, config.word_dims, config.tag_dims, config.dropout_emb, config.lstm_layers, config.lstm_hiddens, config.dropout_lstm_input, config.dropout_lstm_hidden, config.mlp_arc_size, config.mlp_rel_size, config.dropout_mlp)
 	data_loader = MixedDataLoader([config.train_file, args.out_domain_file], [1., 1.], config.num_buckets_train, vocab)
 	pc = parser.parameter_collection
-	trainer = dy.AdamTrainer(pc, config.learning_rate , config.beta_1, config.beta_2, config.epsilon)
-	
+	parser_trainer = dy.AdamTrainer(pc, config.learning_rate , config.beta_1, config.beta_2, config.epsilon)
+	tagger_trainer = dy.AdamTrainer(pc, config.learning_rate , config.beta_1, config.beta_2, config.epsilon)
 	global_step = 0
-	def update_parameters():
-		trainer.learning_rate = config.learning_rate*config.decay**(global_step / config.decay_steps)
-		trainer.update()
+
+	def update_parser_parameters():
+		parser_trainer.learning_rate = config.learning_rate*config.decay**(global_step / config.decay_steps)
+		parser_trainer.update()
+
+	def update_tagger_parameters():
+		tagger_trainer.learning_rate = config.learning_rate*config.decay**(global_step / config.decay_steps)
+		tagger_trainer.update()
 
 	epoch = 0
 	best_UAS = 0.
@@ -91,17 +96,19 @@ if __name__ == "__main__":
 			for domain, _inputs in enumerate([_in, _out]):
 				words, tags, arcs, rels = _inputs
 				dy.renew_cg()
-				if global_step % 2 == 0:
+				if epoch<=5 or (5<epoch <= 100 and global_step % 2 == 0) or (100<epoch and global_step % 3 == 0):
 					tag_acc, loss = parser.run(words, tags, arcs, rels, data_type = domain, tag_turn = True)
 					loss_value = loss.scalar_value()
+					loss.backward()
+					update_tagger_parameters()
 					print "Step #%d: Domain: %d Acc: tag %.2f loss %.3f" %(global_step, domain,tag_acc, loss_value)
 				else:
 					arc_accuracy, rel_accuracy, overall_accuracy, loss = parser.run(words, tags, arcs, rels, data_type = domain)
 					loss_value = loss.scalar_value()
 					print "Step #%d: Domain: %d Acc: arc %.2f, rel %.2f, overall %.2f, loss %.3f" %(global_step, domain, arc_accuracy, rel_accuracy, overall_accuracy, loss_value)
-				loss.backward()
-				update_parameters()
-
+					loss.backward()
+					update_parser_parameters()
+					
 			global_step += 1
 			if global_step % config.validate_every == 0:
 				print '\nTest on development set'
