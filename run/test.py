@@ -48,11 +48,11 @@ def test(parser, vocab, num_buckets_test, test_batch_size, test_file, output_fil
                 else:
                     fo.write('\n')
 
-    os.system('perl eval.pl -q -b -g %s -s %s -o tmp' % (test_file, output_file))
-    os.system('tail -n 3 tmp > score_tmp')
-    LAS, UAS = [float(line.strip().split()[-2]) for line in open('score_tmp').readlines()[:2]]
+    os.system('perl eval.pl -q -b -g %s -s %s -o %s' % (test_file, output_file, output_file+"tmp"))
+    os.system('tail -n 3 %s > %s'%(output_file+"tmp",output_file+"score_tmp"))
+    LAS, UAS = [float(line.strip().split()[-2]) for line in open(output_file+"score_tmp").readlines()[:2]]
     print 'LAS %.2f, UAS %.2f'%(LAS, UAS)
-    os.system('rm tmp score_tmp')
+    os.system('rm %s %s'%(output_file+"tmp",output_file+"score_tmp"))
     return LAS, UAS
 
 def raw_test(parser, vocab, num_buckets_test, test_batch_size, test_file, output_file, notag = True):

@@ -75,6 +75,9 @@ class Configurable(object):
 		return self._config.get('Save', 'load_vocab_path')
 
 	@property
+	def model(self):
+		return self._config.get('Network','model')
+	@property
 	def lstm_layers(self):
 		return self._config.getint('Network','lstm_layers')
 	@property
