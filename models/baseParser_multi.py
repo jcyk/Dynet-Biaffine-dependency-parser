@@ -26,8 +26,8 @@ class BaseParserMulti(object):
 		self.pret_word_embs = pc.lookup_parameters_from_numpy(vocab.get_pret_embs())
 		self.dropout_emb = dropout_emb
 		self.LSTM_builders = []
-		f = orthonormal_VanillaLSTMBuilder(1, word_dims+2*tag_dims, lstm_hiddens, pc, randn_init)
-		b = orthonormal_VanillaLSTMBuilder(1, word_dims+2*tag_dims, lstm_hiddens, pc, randn_init)
+		f = orthonormal_VanillaLSTMBuilder(1, word_dims+tag_dims, lstm_hiddens, pc, randn_init)
+		b = orthonormal_VanillaLSTMBuilder(1, word_dims+tag_dims, lstm_hiddens, pc, randn_init)
 		self.LSTM_builders.append((f,b))
 		for i in xrange(lstm_layers-1):
 			f = orthonormal_VanillaLSTMBuilder(1, 2*lstm_hiddens, lstm_hiddens, pc, randn_init)
@@ -105,7 +105,7 @@ class BaseParserMulti(object):
 		word_embs = [dy.lookup_batch(self.word_embs, np.where( w<self._vocab.words_in_train, w, self._vocab.UNK)) + dy.lookup_batch(self.pret_word_embs, w, update = False) for w in word_inputs]
 		
 		if isTrain:
-			tag_word_embs= [ dy.dropout_dim(w, 0, self.dropout_emb) for w in word_embs]
+			tag_word_embs = [ dy.dropout(w, self.dropout_emb) for w in word_embs]
 
 		tag_recur0 = biLSTM(self.tag_LSTM_builders0, tag_word_embs, batch_size, self.dropout_lstm_input if isTrain else 0., self.dropout_lstm_hidden if isTrain else 0.)
 		tag_recur1 = biLSTM(self.tag_LSTM_builders1, tag_word_embs, batch_size, self.dropout_lstm_input if isTrain else 0., self.dropout_lstm_hidden if isTrain else 0.)
@@ -127,7 +127,7 @@ class BaseParserMulti(object):
 				tag_loss = dy.sum_batches(dy.esum(losses)) / num_tokens
 				return tag_acc, tag_loss
 		emb_masks = self.generate_emb_mask(seq_len, batch_size)
-		emb_inputs = [ dy.concatenate([dy.cmult(w, wm), dy.cmult(pos0,posm), dy.cmult(pos1,posm)]) for w, pos0, pos1, (wm, posm) in zip(word_embs,tag_recur0, tag_recur1, emb_masks)]
+		emb_inputs = [ dy.concatenate([dy.cmult(w, wm), dy.cmult(pos0 + pos1,posm)]) for w, pos0, pos1, (wm, posm) in zip(word_embs,tag_recur0, tag_recur1, emb_masks)]
 		top_recur = dy.concatenate_cols(biLSTM(self.LSTM_builders, emb_inputs, batch_size, self.dropout_lstm_input if isTrain else 0., self.dropout_lstm_hidden if isTrain else 0.))
 		if isTrain:
 			top_recur = dy.dropout_dim(top_recur, 1, self.dropout_mlp)
