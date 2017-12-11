@@ -126,6 +126,7 @@ if __name__ == '__main__':
     elif config.model == 'DistilltagParser':
         parser = Parser(vocab, config.word_dims, config.tag_dims, config.dropout_emb, config.lstm_layers, config.lstm_hiddens, config.dropout_lstm_input, config.dropout_lstm_hidden, config.mlp_arc_size, config.mlp_rel_size, config.dropout_mlp, config.choice_size, randn_init = True)    
     elif config.model == "BaseParserMulti":
-        parser = Parser(vocab, config.word_dims, config.tag_dims, config.dropout_emb, config.lstm_layers, config.lstm_hiddens, config.dropout_lstm_input, config.dropout_lstm_hidden, config.mlp_arc_size, config.mlp_rel_size, config.dropout_mlp)
+        parser = Parser(vocab, config.word_dims, config.tag_dims, config.dropout_emb, config.lstm_layers, config.lstm_hiddens, config.dropout_lstm_input, config.dropout_lstm_hidden, config.mlp_arc_size, config.mlp_rel_size, config.dropout_mlp, randn_init = True)
+        vocab = vocab0
     parser.load(config.load_model_path)
     test(parser, vocab, config.num_buckets_test, config.test_batch_size, config.test_file, args.output_file, _notag)
