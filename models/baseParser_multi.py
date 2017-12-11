@@ -106,7 +106,9 @@ class BaseParserMulti(object):
 		
 		if isTrain:
 			tag_word_embs = [ dy.dropout(w, self.dropout_emb) for w in word_embs]
-
+		else:
+			tag_word_embs = word_embs
+			
 		tag_recur0 = biLSTM(self.tag_LSTM_builders0, tag_word_embs, batch_size, self.dropout_lstm_input if isTrain else 0., self.dropout_lstm_hidden if isTrain else 0.)
 		tag_recur1 = biLSTM(self.tag_LSTM_builders1, tag_word_embs, batch_size, self.dropout_lstm_input if isTrain else 0., self.dropout_lstm_hidden if isTrain else 0.)
 		
