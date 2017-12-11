@@ -104,11 +104,11 @@ class BaseParserMulti(object):
 		
 		word_embs = [dy.lookup_batch(self.word_embs, np.where( w<self._vocab.words_in_train, w, self._vocab.UNK)) + dy.lookup_batch(self.pret_word_embs, w, update = False) for w in word_inputs]
 		
-		if isTrain and tag_turn:
-			word_embs= [ dy.dropout_dim(w, 0, self.dropout_emb) for w in word_embs]
+		if isTrain:
+			tag_word_embs= [ dy.dropout_dim(w, 0, self.dropout_emb) for w in word_embs]
 
-		tag_recur0 = biLSTM(self.tag_LSTM_builders0, word_embs, batch_size, self.dropout_lstm_input if (isTrain and tag_turn) else 0., self.dropout_lstm_hidden if (isTrain and tag_turn) else 0.)
-		tag_recur1 = biLSTM(self.tag_LSTM_builders1, word_embs, batch_size, self.dropout_lstm_input if (isTrain and tag_turn) else 0., self.dropout_lstm_hidden if (isTrain and tag_turn) else 0.)
+		tag_recur0 = biLSTM(self.tag_LSTM_builders0, tag_word_embs, batch_size, self.dropout_lstm_input if isTrain else 0., self.dropout_lstm_hidden if isTrain else 0.)
+		tag_recur1 = biLSTM(self.tag_LSTM_builders1, tag_word_embs, batch_size, self.dropout_lstm_input if isTrain else 0., self.dropout_lstm_hidden if isTrain else 0.)
 		
 		W_tag, b_tag = dy.parameter(self.tag_embs_Ws[data_type]), dy.parameter(self.tag_embs_bs[data_type])
 		tag_recur = (tag_recur0 if data_type == 0 else tag_recur1)
