@@ -38,19 +38,12 @@ if __name__ == "__main__":
 		print time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), '\nStart training epoch #%d'%(epoch, )
 		epoch += 1
 		for words, tags, arcs, rels in data_loader.get_batches(batch_size = config.train_batch_size, shuffle = True):
-			num = int(words.shape[1]/2)
-			words_ = [words[:,:num], words[:,num:]]
-			tags_ = [tags[:,:num], tags[:,num:]]
-			arcs_ = [arcs[:,:num], arcs[:,num:]]
-			rels_ = [rels[:,:num], rels[:,num:]] 
-			for step in xrange(2):
-				dy.renew_cg()
-				arc_accuracy, rel_accuracy, overall_accuracy, loss = parser.run(words_[step], tags_[step], arcs_[step], rels_[step])
-				loss = loss*0.5
-				loss_value = loss.scalar_value()
-				loss.backward()
-				sys.stdout.write("Step #%d: Acc: arc %.2f, rel %.2f, overall %.2f, loss %.3f\r\r" %(global_step, arc_accuracy, rel_accuracy, overall_accuracy, loss_value))
-				sys.stdout.flush()
+			dy.renew_cg()
+			arc_accuracy, rel_accuracy, overall_accuracy, loss = parser.run(words, tags, arcs, rels)
+			loss_value = loss.scalar_value()
+			loss.backward()
+			sys.stdout.write("Step #%d: Acc: arc %.2f, rel %.2f, overall %.2f, loss %.3f\r\r" %(global_step, arc_accuracy, rel_accuracy, overall_accuracy, loss_value))
+			sys.stdout.flush()
 			update_parameters()
 
 			global_step += 1

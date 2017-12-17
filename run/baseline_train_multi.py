@@ -94,9 +94,11 @@ if __name__ == "__main__":
 		epoch += 1
 		for _in, _out in data_loader.get_batches(batch_size = config.train_batch_size):
 			for domain, _inputs in enumerate([_in, _out]):
+				if domain == 1:
+					continue
 				words, tags, arcs, rels = _inputs
 				dy.renew_cg()
-				if epoch<=5 or (5<epoch <= 100 and global_step % 2 == 0) or (100<epoch and global_step % 3 == 0):
+				if epoch<=5 or (5<epoch <= 50 and global_step % 2 == 0) or (50<epoch and global_step % 3 == 0):
 					tag_acc, loss = parser.run(words, tags, arcs, rels, data_type = domain, tag_turn = True)
 					loss_value = loss.scalar_value()
 					loss.backward()

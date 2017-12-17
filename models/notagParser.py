@@ -50,7 +50,7 @@ class NotagParser(object):
 
 		self._pc = pc
 		self.dropout_emb = dropout_emb
-		self.fixed_word_emb = True
+		self.fixed_word_emb = False
  		self.use_pret = True
 
 	@property
@@ -148,19 +148,10 @@ class NotagParser(object):
 		
 		outputs = []
 		
-		#xxx = 0
-		#history = lambda x, y : open('domybest','a').write('%.2f %.2f\n'%(x,y))
 		for msk, arc_prob, rel_prob in zip(np.transpose(mask), arc_probs, rel_probs):
 			# parse sentences one by one
 			msk[0] = 1.
 			sent_len = int(np.sum(msk))
-			#for i in xrange(sent_len):
-			#	for j in xrange(sent_len):
-			#		if j == arc_targets[i][xxx]:
-			#			history(arc_prob[i][j], 1)
-			#		else:
-			#			history(arc_prob[i][j], 0)
-			#xxx += 1
 			arc_pred = arc_argmax(arc_prob, sent_len, msk)
 			rel_prob = rel_prob[np.arange(len(arc_pred)),arc_pred]
 			rel_pred = rel_argmax(rel_prob, sent_len)

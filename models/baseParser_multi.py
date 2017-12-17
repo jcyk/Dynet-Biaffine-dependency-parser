@@ -55,11 +55,7 @@ class BaseParserMulti(object):
  		
  		f = orthonormal_VanillaLSTMBuilder(1, word_dims, tag_dims//2, pc, randn_init)
 		b = orthonormal_VanillaLSTMBuilder(1, word_dims, tag_dims//2, pc, randn_init)
-		self.tag_LSTM_builders0 = [(f,b)]
-
-		f = orthonormal_VanillaLSTMBuilder(1, word_dims, tag_dims//2, pc, randn_init)
-		b = orthonormal_VanillaLSTMBuilder(1, word_dims, tag_dims//2, pc, randn_init)
-		self.tag_LSTM_builders1 = [(f,b)]
+		self.tag_LSTM_builders = [(f,b)]
 
 		self.tag_embs_W0 = pc.add_parameters((vocab.tag_size[0], tag_dims))
 		self.tag_embs_b0 = pc.add_parameters(vocab.tag_size[0], init = dy.ConstInitializer(0.))
@@ -109,13 +105,10 @@ class BaseParserMulti(object):
 		else:
 			tag_word_embs = word_embs
 			
-		tag_recur0 = biLSTM(self.tag_LSTM_builders0, tag_word_embs, batch_size, self.dropout_lstm_input if isTrain else 0., self.dropout_lstm_hidden if isTrain else 0.)
-		tag_recur1 = biLSTM(self.tag_LSTM_builders1, tag_word_embs, batch_size, self.dropout_lstm_input if isTrain else 0., self.dropout_lstm_hidden if isTrain else 0.)
-		
-		W_tag, b_tag = dy.parameter(self.tag_embs_Ws[data_type]), dy.parameter(self.tag_embs_bs[data_type])
-		tag_recur = (tag_recur0 if data_type == 0 else tag_recur1)
-		losses = []
+		tag_recur = biLSTM(self.tag_LSTM_builders, tag_word_embs, batch_size, self.dropout_lstm_input if isTrain else 0., self.dropout_lstm_hidden if isTrain else 0.)
 
+		W_tag, b_tag = dy.parameter(self.tag_embs_Ws[data_type]), dy.parameter(self.tag_embs_bs[data_type])
+		losses = []
 		if tag_turn or not isTrain:
 			correct = 0
 			for h, tgt, msk in zip(tag_recur, tag_inputs, mask):
@@ -129,7 +122,7 @@ class BaseParserMulti(object):
 				tag_loss = dy.sum_batches(dy.esum(losses)) / num_tokens
 				return tag_acc, tag_loss
 		emb_masks = self.generate_emb_mask(seq_len, batch_size)
-		emb_inputs = [ dy.concatenate([dy.cmult(w, wm), dy.cmult(pos0 + pos1,posm)]) for w, pos0, pos1, (wm, posm) in zip(word_embs,tag_recur0, tag_recur1, emb_masks)]
+		emb_inputs = [ dy.concatenate([dy.cmult(w, wm), dy.cmult(pos,posm)]) for w, pos, (wm, posm) in zip(word_embs,tag_recur, emb_masks)]
 		top_recur = dy.concatenate_cols(biLSTM(self.LSTM_builders, emb_inputs, batch_size, self.dropout_lstm_input if isTrain else 0., self.dropout_lstm_hidden if isTrain else 0.))
 		if isTrain:
 			top_recur = dy.dropout_dim(top_recur, 1, self.dropout_mlp)
