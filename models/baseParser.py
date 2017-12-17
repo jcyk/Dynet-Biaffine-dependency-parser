@@ -169,7 +169,7 @@ class BaseParser(object):
 			arc_pred = arc_argmax(arc_prob, sent_len, msk)
 			rel_prob = rel_prob[np.arange(len(arc_pred)),arc_pred]
 			rel_pred = rel_argmax(rel_prob, sent_len)
-			outputs.append((arc_pred[1:sent_len], rel_pred[1:sent_len]))
+			outputs.append((arc_pred[1:sent_len], rel_pred[1:sent_len], arc_prob[np.arange(1, sent_len), arc_pred[1:sent_len]]))
 		
 		if arc_targets is not None:
 			return arc_accuracy, rel_accuracy, overall_accuracy, outputs
