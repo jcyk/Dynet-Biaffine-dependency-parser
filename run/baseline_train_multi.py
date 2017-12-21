@@ -1,4 +1,8 @@
 # -*- coding: UTF-8 -*-
+# golden tag 85.86 90.39
+# no tag 79.48 85.55
+# tag + parser 76.25 82.42
+# stack prop 
 from __future__ import division
 import sys, time, os, cPickle
 sys.path.append('..')
@@ -98,7 +102,7 @@ if __name__ == "__main__":
 					continue
 				words, tags, arcs, rels = _inputs
 				dy.renew_cg()
-				if epoch<=5 or (5<epoch <= 50 and global_step % 2 == 0) or (50<epoch and global_step % 3 == 0):
+				if epoch<=5 or (5<epoch <= 10 and global_step % 3 == 0) or (10<epoch and global_step % 4 == 0):
 					tag_acc, loss = parser.run(words, tags, arcs, rels, data_type = domain, tag_turn = True)
 					loss_value = loss.scalar_value()
 					loss.backward()
