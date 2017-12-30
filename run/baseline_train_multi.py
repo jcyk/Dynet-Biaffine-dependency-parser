@@ -1,8 +1,8 @@
 # -*- coding: UTF-8 -*-
 # golden tag 85.86 90.39
 # no tag 79.48 85.55
-# tag + parser 76.25 82.42
-# stack prop 
+# tag+parser 76.25 82.42
+# stack prop 76.98 83.41
 from __future__ import division
 import sys, time, os, cPickle
 sys.path.append('..')
@@ -98,11 +98,9 @@ if __name__ == "__main__":
 		epoch += 1
 		for _in, _out in data_loader.get_batches(batch_size = config.train_batch_size):
 			for domain, _inputs in enumerate([_in, _out]):
-				if domain == 1:
-					continue
 				words, tags, arcs, rels = _inputs
 				dy.renew_cg()
-				if epoch<=5 or (5<epoch <= 10 and global_step % 3 == 0) or (10<epoch and global_step % 4 == 0):
+				if False:#epoch<=5 or (5<epoch <= 10 and global_step % 3 == 0) or (10<epoch and global_step % 4 == 0):
 					tag_acc, loss = parser.run(words, tags, arcs, rels, data_type = domain, tag_turn = True)
 					loss_value = loss.scalar_value()
 					loss.backward()
