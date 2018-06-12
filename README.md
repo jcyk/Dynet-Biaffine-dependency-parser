@@ -22,3 +22,12 @@ On some version of WSJ data. This code only acheived UAS 95.56%, though the orig
 ```
 
 All configuration options (see in `run/config.py`) can be specified on the command line, but it's much easier to instead store them in a configuration file like `configs/default.cfg`.
+
+### Known Issues
+Never stop? try [#6](https://github.com/jcyk/Dynet-Biaffine-dependency-parser/issues/6)
+
+LAS is low? try [#2](https://github.com/jcyk/Dynet-Biaffine-dependency-parser/issues/2)
+
+
+### Contact
+Deng Cai, thisisjcykcd (AT) gmail.com
