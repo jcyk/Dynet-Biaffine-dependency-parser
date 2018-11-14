@@ -50,3 +50,4 @@ node2vec/graph.cpp
 node2vec/graph.so
 
 word2vec 12.35.48 AM
+*.DS_Store
